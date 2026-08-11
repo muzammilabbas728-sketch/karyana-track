@@ -36,7 +36,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
         for item in sale.items:
             product_row = cursor.execute(
-                "SELECT id, name, selling_price, cost_price, quantity_in_stock FROM products WHERE id = ? AND is_active = 1",
+                "SELECT id, name, selling_price, cost_price, quantity_in_stock, unit_type FROM products WHERE id = ? AND is_active = 1",
                 (item.product_id,),
             ).fetchone()
 
@@ -52,8 +52,13 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
                     detail=f"Insufficient stock for product {product_row['name']}",
                 )
 
-            unit_price = float(product_row["selling_price"])
-            unit_cost = float(product_row["cost_price"])
+            if product_row["unit_type"] == "weight":
+                unit_price = float(product_row["selling_price"]) / 1000
+                unit_cost = float(product_row["cost_price"]) / 1000
+            else:
+                unit_price = float(product_row["selling_price"])
+                unit_cost = float(product_row["cost_price"])
+
             line_total = unit_price * item.quantity
             line_profit = (unit_price - unit_cost) * item.quantity
 
@@ -75,7 +80,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
         cursor.execute(
             "UPDATE sales SET total_amount = ?, total_profit = ? WHERE id = ?",
-            (total_amount, total_profit, sale_id),
+            (round(total_amount, 2), round(total_profit, 2), sale_id),
         )
 
     with transaction() as cursor:
@@ -101,8 +106,8 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
     return SaleResponse(
         id=sale_row["id"],
         user_id=sale_row["user_id"],
-        total_amount=float(sale_row["total_amount"]),
-        total_profit=float(sale_row["total_profit"]),
+        total_amount=float(round(sale_row["total_amount"], 2)),
+        total_profit=float(round(sale_row["total_profit"], 2)),
         created_at=sale_row["created_at"],
         items=[
             SaleItemResponse(

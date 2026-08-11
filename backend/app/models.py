@@ -14,6 +14,10 @@ class ProductCreate(BaseModel):
     cost_price: float = Field(..., ge=0, description="Cost price of the product")
     selling_price: float = Field(..., ge=0, description="Selling price of the product")
     quantity_in_stock: int = Field(..., ge=0, description="Current stock quantity")
+    unit_type: Literal["piece", "weight"] = Field(
+        default="piece",
+        description="Whether this product is sold as whole units or by weight in grams",
+    )
     low_stock_threshold: int = Field(default=5, ge=0, description="Threshold for low stock warnings")
 
 
@@ -25,6 +29,10 @@ class ProductUpdate(BaseModel):
     cost_price: Optional[float] = Field(default=None, ge=0, description="Cost price of the product")
     selling_price: Optional[float] = Field(default=None, ge=0, description="Selling price of the product")
     quantity_in_stock: Optional[int] = Field(default=None, ge=0, description="Current stock quantity")
+    unit_type: Optional[Literal["piece", "weight"]] = Field(
+        default=None,
+        description="Whether this product is sold as whole units or by weight in grams",
+    )
     low_stock_threshold: Optional[int] = Field(default=None, ge=0, description="Threshold for low stock warnings")
 
 
@@ -39,6 +47,7 @@ class ProductResponse(BaseModel):
     cost_price: float = Field(..., ge=0, description="Cost price of the product")
     selling_price: float = Field(..., ge=0, description="Selling price of the product")
     quantity_in_stock: int = Field(..., description="Current stock quantity")
+    unit_type: str = Field(..., description="Whether this product is sold as whole units or by weight in grams")
     low_stock_threshold: int = Field(..., description="Threshold for low stock warnings")
     is_active: bool = Field(..., description="Whether the product is active")
     created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")

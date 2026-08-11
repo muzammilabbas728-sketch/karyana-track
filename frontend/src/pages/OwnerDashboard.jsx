@@ -230,7 +230,9 @@ export default function OwnerDashboard() {
                   color: "#b45309",
                 }}
               >
-                {item.name}: {item.quantity_in_stock} left (threshold: {item.low_stock_threshold})
+                {item.unit_type === "weight"
+                  ? `${item.name}: ${(item.quantity_in_stock / 1000).toFixed(2)} kg left (threshold: ${(item.low_stock_threshold / 1000).toFixed(2)} kg)`
+                  : `${item.name}: ${item.quantity_in_stock} left (threshold: ${item.low_stock_threshold})`}
               </div>
             ))}
           </div>

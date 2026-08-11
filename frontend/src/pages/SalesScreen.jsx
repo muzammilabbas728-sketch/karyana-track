@@ -9,6 +9,9 @@ export default function SalesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [weightEntryProductId, setWeightEntryProductId] = useState(null);
+  const [weightEntryAmount, setWeightEntryAmount] = useState("");
+  const [weightEntryUnit, setWeightEntryUnit] = useState("g");
 
   useEffect(() => {
     async function loadProducts() {
@@ -49,6 +52,30 @@ export default function SalesScreen() {
           name: product.name,
           unit_price: product.selling_price,
           quantity: 1,
+          unit_type: product.unit_type,
+        },
+      ];
+    });
+  }
+
+  function handleAddWeightToCart(product, grams) {
+    setCart((currentCart) => {
+      const existing = currentCart.find((item) => item.product_id === product.id);
+      if (existing) {
+        return currentCart.map((item) =>
+          item.product_id === product.id
+            ? { ...item, quantity: item.quantity + grams }
+            : item
+        );
+      }
+      return [
+        ...currentCart,
+        {
+          product_id: product.id,
+          name: product.name,
+          unit_price: product.selling_price / 1000,
+          quantity: grams,
+          unit_type: product.unit_type,
         },
       ];
     });
@@ -152,20 +179,115 @@ export default function SalesScreen() {
                   <strong>{product.name}</strong>
                   <div style={{ color: "#6b7280" }}>Rs. {product.selling_price}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddToCart(product)}
-                  style={{
-                    padding: "0.5rem 0.75rem",
-                    borderRadius: "8px",
-                    border: "none",
-                    backgroundColor: "#2563eb",
-                    color: "white",
-                    cursor: "pointer",
-                  }}
-                >
-                  Add to Cart
-                </button>
+                {weightEntryProductId === product.id ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <input
+                        type="number"
+                        value={weightEntryAmount}
+                        onChange={(event) => setWeightEntryAmount(event.target.value)}
+                        placeholder="Amount"
+                        style={{
+                          width: "90px",
+                          padding: "0.5rem",
+                          borderRadius: "8px",
+                          border: "1px solid #ccc",
+                        }}
+                      />
+                      <select
+                        value={weightEntryUnit}
+                        onChange={(event) => setWeightEntryUnit(event.target.value)}
+                        style={{
+                          padding: "0.5rem",
+                          borderRadius: "8px",
+                          border: "1px solid #ccc",
+                        }}
+                      >
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const amount = Number(weightEntryAmount);
+                          const grams = weightEntryUnit === "kg" ? Math.round(amount * 1000) : Math.round(amount);
+
+                          if (Number.isNaN(grams) || grams <= 0) {
+                            setError("Enter a valid amount");
+                            return;
+                          }
+
+                          handleAddWeightToCart(product, grams);
+                          setWeightEntryProductId(null);
+                          setWeightEntryAmount("");
+                          setWeightEntryUnit("g");
+                          setError(null);
+                        }}
+                        style={{
+                          padding: "0.5rem 0.75rem",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: "#16a34a",
+                          color: "white",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWeightEntryProductId(null);
+                          setWeightEntryAmount("");
+                          setWeightEntryUnit("g");
+                          setError(null);
+                        }}
+                        style={{
+                          padding: "0.5rem 0.75rem",
+                          borderRadius: "8px",
+                          border: "1px solid #d1d5db",
+                          background: "#f9fafb",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (product.unit_type === "piece") {
+                        handleAddToCart(product);
+                        return;
+                      }
+
+                      setWeightEntryProductId(product.id);
+                      setWeightEntryAmount("");
+                      setWeightEntryUnit("g");
+                    }}
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      borderRadius: "8px",
+                      border: "none",
+                      backgroundColor: "#2563eb",
+                      color: "white",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+                )}
               </div>
             ))}
             {!loading && filteredProducts.length === 0 ? (
@@ -241,7 +363,7 @@ export default function SalesScreen() {
                   <div>
                     <button
                       type="button"
-                      onClick={() => handleUpdateQuantity(item.product_id, -1)}
+                      onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? -50 : -1)}
                       style={{
                         padding: "0.35rem 0.6rem",
                         borderRadius: "8px",
@@ -253,10 +375,16 @@ export default function SalesScreen() {
                     >
                       -
                     </button>
-                    <span>{item.quantity}</span>
+                    <span>
+                      {item.unit_type === "weight"
+                        ? item.quantity >= 1000
+                          ? `${(item.quantity / 1000).toFixed(2)} kg`
+                          : `${item.quantity} g`
+                        : item.quantity}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => handleUpdateQuantity(item.product_id, 1)}
+                      onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? 50 : 1)}
                       style={{
                         padding: "0.35rem 0.6rem",
                         borderRadius: "8px",
@@ -270,7 +398,15 @@ export default function SalesScreen() {
                     </button>
                   </div>
                   <div>
-                    Rs. {item.unit_price} x {item.quantity} = Rs. {item.unit_price * item.quantity}
+                    {item.unit_type === "weight" ? (
+                      <span>
+                        Rs. {(item.unit_price * 1000).toFixed(2)}/kg — Total: Rs. {(item.unit_price * item.quantity).toFixed(2)}
+                      </span>
+                    ) : (
+                      <span>
+                        Rs. {item.unit_price} x {item.quantity} = Rs. {item.unit_price * item.quantity}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

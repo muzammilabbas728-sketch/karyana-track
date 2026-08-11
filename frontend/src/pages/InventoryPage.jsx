@@ -12,6 +12,7 @@ function createEmptyProductForm() {
   return {
     name: "",
     barcode: "",
+    unit_type: "piece",
     cost_price: "",
     selling_price: "",
     quantity_in_stock: "",
@@ -79,10 +80,17 @@ export default function InventoryPage() {
     const payload = {
       name: newProduct.name.trim(),
       barcode: newProduct.barcode.trim() || null,
+      unit_type: newProduct.unit_type,
       cost_price: Number(newProduct.cost_price),
       selling_price: Number(newProduct.selling_price),
-      quantity_in_stock: Number(newProduct.quantity_in_stock),
-      low_stock_threshold: Number(newProduct.low_stock_threshold),
+      quantity_in_stock:
+        newProduct.unit_type === "weight"
+          ? Math.round(Number(newProduct.quantity_in_stock) * 1000)
+          : Number(newProduct.quantity_in_stock),
+      low_stock_threshold:
+        newProduct.unit_type === "weight"
+          ? Math.round(Number(newProduct.low_stock_threshold) * 1000)
+          : Number(newProduct.low_stock_threshold),
     };
 
     if (
@@ -113,10 +121,15 @@ export default function InventoryPage() {
       ...createEmptyProductForm(),
       name: product.name || "",
       barcode: product.barcode || "",
+      unit_type: product.unit_type || "piece",
       cost_price: toInputValue(product.cost_price),
       selling_price: toInputValue(product.selling_price),
-      quantity_in_stock: toInputValue(product.quantity_in_stock),
-      low_stock_threshold: toInputValue(product.low_stock_threshold),
+      quantity_in_stock: toInputValue(
+        product.unit_type === "weight" ? product.quantity_in_stock / 1000 : product.quantity_in_stock
+      ),
+      low_stock_threshold: toInputValue(
+        product.unit_type === "weight" ? product.low_stock_threshold / 1000 : product.low_stock_threshold
+      ),
     });
   }
 
@@ -127,10 +140,17 @@ export default function InventoryPage() {
     const payload = {
       name: editValues.name.trim(),
       barcode: editValues.barcode.trim() || null,
+      unit_type: editValues.unit_type,
       cost_price: Number(editValues.cost_price),
       selling_price: Number(editValues.selling_price),
-      quantity_in_stock: Number(editValues.quantity_in_stock),
-      low_stock_threshold: Number(editValues.low_stock_threshold),
+      quantity_in_stock:
+        editValues.unit_type === "weight"
+          ? Math.round(Number(editValues.quantity_in_stock) * 1000)
+          : Number(editValues.quantity_in_stock),
+      low_stock_threshold:
+        editValues.unit_type === "weight"
+          ? Math.round(Number(editValues.low_stock_threshold) * 1000)
+          : Number(editValues.low_stock_threshold),
     };
 
     if (
@@ -308,7 +328,19 @@ export default function InventoryPage() {
               />
             </label>
             <label>
-              Cost Price
+              Unit Type
+              <select
+                name="unit_type"
+                value={newProduct.unit_type}
+                onChange={handleNewProductChange}
+                style={inputStyle}
+              >
+                <option value="piece">Piece</option>
+                <option value="weight">Weight (grams)</option>
+              </select>
+            </label>
+            <label>
+              {newProduct.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
               <input
                 name="cost_price"
                 type="number"
@@ -320,7 +352,7 @@ export default function InventoryPage() {
               />
             </label>
             <label>
-              Selling Price
+              {newProduct.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
               <input
                 name="selling_price"
                 type="number"
@@ -332,7 +364,7 @@ export default function InventoryPage() {
               />
             </label>
             <label>
-              Quantity in Stock
+              {newProduct.unit_type === "weight" ? "Quantity in Stock (kg)" : "Quantity in Stock"}
               <input
                 name="quantity_in_stock"
                 type="number"
@@ -343,7 +375,7 @@ export default function InventoryPage() {
               />
             </label>
             <label>
-              Low Stock Threshold
+              {newProduct.unit_type === "weight" ? "Low Stock Threshold (kg)" : "Low Stock Threshold"}
               <input
                 name="low_stock_threshold"
                 type="number"
@@ -371,6 +403,7 @@ export default function InventoryPage() {
               <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
                 <th style={cellStyle}>Name</th>
                 <th style={cellStyle}>Barcode</th>
+                <th style={cellStyle}>Type</th>
                 <th style={cellStyle}>Cost</th>
                 <th style={cellStyle}>Selling</th>
                 <th style={cellStyle}>Qty</th>
@@ -400,6 +433,20 @@ export default function InventoryPage() {
                         />
                       </td>
                       <td style={cellStyle}>
+                        <select
+                          name="unit_type"
+                          value={editValues.unit_type}
+                          onChange={handleEditChange}
+                          style={inputStyle}
+                        >
+                          <option value="piece">Piece</option>
+                          <option value="weight">Weight (grams)</option>
+                        </select>
+                      </td>
+                      <td style={cellStyle}>
+                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                          {editValues.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
+                        </label>
                         <input
                           name="cost_price"
                           type="number"
@@ -410,6 +457,9 @@ export default function InventoryPage() {
                         />
                       </td>
                       <td style={cellStyle}>
+                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                          {editValues.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
+                        </label>
                         <input
                           name="selling_price"
                           type="number"
@@ -420,6 +470,9 @@ export default function InventoryPage() {
                         />
                       </td>
                       <td style={cellStyle}>
+                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                          {editValues.unit_type === "weight" ? "Qty (kg)" : "Qty"}
+                        </label>
                         <input
                           name="quantity_in_stock"
                           type="number"
@@ -429,6 +482,9 @@ export default function InventoryPage() {
                         />
                       </td>
                       <td style={cellStyle}>
+                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                          {editValues.unit_type === "weight" ? "Low Stock Threshold (kg)" : "Low Stock Threshold"}
+                        </label>
                         <input
                           name="low_stock_threshold"
                           type="number"
@@ -452,10 +508,19 @@ export default function InventoryPage() {
                     <>
                       <td style={cellStyle}>{product.name}</td>
                       <td style={cellStyle}>{product.barcode || "—"}</td>
+                      <td style={cellStyle}>{product.unit_type === "weight" ? "Weight (g)" : "Piece"}</td>
                       <td style={cellStyle}>{product.cost_price}</td>
                       <td style={cellStyle}>{product.selling_price}</td>
-                      <td style={cellStyle}>{product.quantity_in_stock}</td>
-                      <td style={cellStyle}>{product.low_stock_threshold}</td>
+                      <td style={cellStyle}>
+                        {product.unit_type === "weight"
+                          ? (product.quantity_in_stock / 1000).toFixed(2)
+                          : product.quantity_in_stock}
+                      </td>
+                      <td style={cellStyle}>
+                        {product.unit_type === "weight"
+                          ? (product.low_stock_threshold / 1000).toFixed(2)
+                          : product.low_stock_threshold}
+                      </td>
                       <td style={cellStyle}>
                         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                           <button type="button" onClick={() => startEditing(product)} style={secondaryButtonStyle}>

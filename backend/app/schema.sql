@@ -14,6 +14,7 @@ CREATE TABLE products (
     cost_price          REAL NOT NULL CHECK (cost_price >= 0),
     selling_price       REAL NOT NULL CHECK (selling_price >= 0),
     quantity_in_stock   INTEGER NOT NULL DEFAULT 0 CHECK (quantity_in_stock >= 0),
+    unit_type           TEXT NOT NULL DEFAULT 'piece' CHECK (unit_type IN ('piece', 'weight')),
     low_stock_threshold INTEGER NOT NULL DEFAULT 5,
     is_active           BOOLEAN NOT NULL DEFAULT 1,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

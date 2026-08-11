@@ -28,7 +28,7 @@ def list_products(current_user: dict = Depends(get_current_user)) -> List[Produc
     """Return all active products available in inventory."""
     with transaction() as cursor:
         rows = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE is_active = 1 ORDER BY id"
         ).fetchall()
@@ -41,7 +41,7 @@ def get_product(product_id: int, current_user: dict = Depends(get_current_user))
     """Retrieve a single active product by its identifier."""
     with transaction() as cursor:
         row = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE id = ?",
             (product_id,),
@@ -61,9 +61,9 @@ def create_product(product: ProductCreate, current_user: dict = Depends(require_
         cursor.execute(
             """
             INSERT INTO products (
-                name, barcode, cost_price, selling_price, quantity_in_stock,
+                name, barcode, cost_price, selling_price, quantity_in_stock, unit_type,
                 low_stock_threshold, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             """,
             (
                 product.name,
@@ -71,6 +71,7 @@ def create_product(product: ProductCreate, current_user: dict = Depends(require_
                 product.cost_price,
                 product.selling_price,
                 product.quantity_in_stock,
+                product.unit_type,
                 product.low_stock_threshold,
                 now,
                 now,
@@ -80,7 +81,7 @@ def create_product(product: ProductCreate, current_user: dict = Depends(require_
 
     with transaction() as cursor:
         row = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE id = ?",
             (product_id,),
@@ -107,13 +108,15 @@ def update_product(product_id: int, product_update: ProductUpdate, current_user:
         updates["selling_price"] = product_update.selling_price
     if product_update.quantity_in_stock is not None:
         updates["quantity_in_stock"] = product_update.quantity_in_stock
+    if product_update.unit_type is not None:
+        updates["unit_type"] = product_update.unit_type
     if product_update.low_stock_threshold is not None:
         updates["low_stock_threshold"] = product_update.low_stock_threshold
 
     if not updates:
         with transaction() as cursor:
             existing = cursor.execute(
-                "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+                "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
                 "low_stock_threshold, is_active, created_at, updated_at "
                 "FROM products WHERE id = ?",
                 (product_id,),
@@ -135,7 +138,7 @@ def update_product(product_id: int, product_update: ProductUpdate, current_user:
 
     with transaction() as cursor:
         row = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE id = ?",
             (product_id,),
@@ -163,7 +166,7 @@ def adjust_product_stock(
     now = datetime.utcnow()
     with transaction() as cursor:
         product = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE id = ? AND is_active = 1",
             (product_id,),
@@ -197,7 +200,7 @@ def adjust_product_stock(
         )
 
         updated_product = cursor.execute(
-            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, "
+            "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, "
             "low_stock_threshold, is_active, created_at, updated_at "
             "FROM products WHERE id = ?",
             (product_id,),

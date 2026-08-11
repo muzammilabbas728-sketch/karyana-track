@@ -1,6 +1,6 @@
 """Seed the initial owner user into the database."""
 
-from app.auth import hash_pin
+from app.routers.auth import hash_pin
 from app.database import transaction
 
 

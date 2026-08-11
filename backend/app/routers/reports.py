@@ -69,7 +69,7 @@ def low_stock_report(current_user: dict = Depends(get_current_user)) -> List[Dic
     with transaction() as cursor:
         rows = cursor.execute(
             """
-            SELECT id, name, quantity_in_stock, low_stock_threshold
+            SELECT id, name, quantity_in_stock, low_stock_threshold, unit_type
             FROM products
             WHERE is_active = 1 AND quantity_in_stock <= low_stock_threshold
             ORDER BY id
@@ -82,6 +82,7 @@ def low_stock_report(current_user: dict = Depends(get_current_user)) -> List[Dic
             "name": row["name"],
             "quantity_in_stock": row["quantity_in_stock"],
             "low_stock_threshold": row["low_stock_threshold"],
+            "unit_type": row["unit_type"],
         }
         for row in rows
     ]
