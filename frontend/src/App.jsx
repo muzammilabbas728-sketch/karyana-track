@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { colors, fonts, styles } from "./theme";
 import LoginPage from "./pages/LoginPage";
 import SalesScreen from "./pages/SalesScreen";
 import OwnerDashboard from "./pages/OwnerDashboard";
@@ -30,98 +31,120 @@ export default function App() {
   const isOwner = role === "owner";
 
   return (
-    <main
+    <div
       style={{
+        display: "flex",
         minHeight: "100vh",
-        padding: "1rem",
-        background: "#f5f7fb",
+        fontFamily: fonts.body,
       }}
     >
-      <div
+      <aside
         style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
+          width: "220px",
+          background: colors.surface,
+          borderRight: `1px solid ${colors.border}`,
+          padding: "1.5rem",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "1.5rem",
-            padding: "1rem",
-            background: "#fff",
-            borderRadius: "12px",
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
-          }}
-        >
-          <div>
-            <h1 style={{ margin: 0 }}>Karyana Track</h1>
-            <p style={{ margin: "0.5rem 0 0" }}>
-              Logged in as {name} ({role})
-            </p>
+        <div>
+          <h1 style={{ ...styles.pageTitle, fontSize: "1.3rem" }}>Karyana Track</h1>
+          <div style={{ ...styles.label, marginTop: "0.5rem" }}>
+            {name} · {role}
           </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "#dc2626",
-              color: "white",
-              fontWeight: "600",
-              cursor: "pointer",
-            }}
-          >
-            Log Out
-          </button>
-        </header>
+        </div>
 
-        <div style={{ marginBottom: "1rem" }}>
+        <div style={{ marginTop: "2rem", display: "flex", flexDirection: "column" }}>
           <button
             type="button"
             onClick={() => setActiveView("sales")}
+            onMouseEnter={(event) => {
+              if (activeView !== "sales") {
+                event.currentTarget.style.backgroundColor = colors.bg;
+              }
+            }}
+            onMouseLeave={(event) => {
+              if (activeView !== "sales") {
+                event.currentTarget.style.backgroundColor = "transparent";
+              }
+            }}
             style={{
+              width: "100%",
+              textAlign: "left",
               padding: "0.75rem 1rem",
-              marginRight: isOwner ? "0.5rem" : 0,
               borderRadius: "8px",
               border: "none",
-              backgroundColor: activeView === "sales" ? "#2563eb" : "#e2e8f0",
-              color: activeView === "sales" ? "white" : "#1f2937",
               cursor: "pointer",
+              marginBottom: "0.5rem",
+              backgroundColor: activeView === "sales" ? colors.primary : "transparent",
+              color: activeView === "sales" ? "#fff" : colors.ink,
+              fontFamily: fonts.body,
+              fontWeight: 600,
             }}
           >
             Sales
           </button>
+
           {isOwner ? (
             <>
               <button
                 type="button"
                 onClick={() => setActiveView("dashboard")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "dashboard") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "dashboard") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
                 style={{
+                  width: "100%",
+                  textAlign: "left",
                   padding: "0.75rem 1rem",
-                  marginRight: "0.5rem",
                   borderRadius: "8px",
                   border: "none",
-                  backgroundColor:
-                    activeView === "dashboard" ? "#2563eb" : "#e2e8f0",
-                  color: activeView === "dashboard" ? "white" : "#1f2937",
                   cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "dashboard" ? colors.primary : "transparent",
+                  color: activeView === "dashboard" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
                 }}
               >
                 Dashboard
               </button>
+
               <button
                 type="button"
                 onClick={() => setActiveView("inventory")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "inventory") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "inventory") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
                 style={{
+                  width: "100%",
+                  textAlign: "left",
                   padding: "0.75rem 1rem",
                   borderRadius: "8px",
                   border: "none",
-                  backgroundColor:
-                    activeView === "inventory" ? "#2563eb" : "#e2e8f0",
-                  color: activeView === "inventory" ? "white" : "#1f2937",
                   cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "inventory" ? colors.primary : "transparent",
+                  color: activeView === "inventory" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
                 }}
               >
                 Inventory
@@ -130,6 +153,27 @@ export default function App() {
           ) : null}
         </div>
 
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            ...styles.buttonDanger,
+            width: "100%",
+            marginTop: "auto",
+          }}
+        >
+          Log Out
+        </button>
+      </aside>
+
+      <main
+        style={{
+          flex: 1,
+          padding: "2rem",
+          overflowY: "auto",
+          background: colors.bg,
+        }}
+      >
         {activeView === "dashboard" && isOwner ? (
           <OwnerDashboard />
         ) : activeView === "inventory" && isOwner ? (
@@ -137,7 +181,7 @@ export default function App() {
         ) : (
           <SalesScreen />
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

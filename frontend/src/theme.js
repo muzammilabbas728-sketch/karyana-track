@@ -1,0 +1,103 @@
+export const colors = {
+  bg: '#FAFAF8',
+  surface: '#FFFFFF',
+  ink: '#1C1917',
+  muted: '#6B6459',
+  primary: '#2F6844',
+  primaryHover: '#24512F',
+  warning: '#B7791F',
+  danger: '#B42318',
+  border: '#E7E4DD',
+};
+
+export const fonts = {
+  display: "'Fraunces', serif",
+  body: "'IBM Plex Sans', sans-serif",
+};
+
+export const styles = {
+  pageBackground: {
+    minHeight: '100vh',
+    background: colors.bg,
+    fontFamily: fonts.body,
+  },
+  card: {
+    background: colors.surface,
+    borderRadius: '12px',
+    padding: '1.5rem',
+    border: `1px solid ${colors.border}`,
+  },
+  cardAccent: (accentColor) => ({
+    background: colors.surface,
+    borderRadius: '12px',
+    padding: '1.5rem',
+    border: `1px solid ${colors.border}`,
+    borderLeft: `4px solid ${accentColor}`,
+  }),
+  pageTitle: {
+    fontFamily: fonts.display,
+    fontWeight: 600,
+    color: colors.ink,
+    margin: 0,
+  },
+  input: {
+    width: '100%',
+    padding: '0.7rem 0.85rem',
+    borderRadius: '8px',
+    border: `1px solid ${colors.border}`,
+    fontFamily: fonts.body,
+    fontSize: '0.95rem',
+    color: colors.ink,
+    background: colors.surface,
+  },
+  label: {
+    fontSize: '0.85rem',
+    fontWeight: 500,
+    color: colors.muted,
+  },
+  buttonPrimary: {
+    padding: '0.7rem 1.1rem',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: colors.primary,
+    color: '#fff',
+    fontWeight: 600,
+    fontFamily: fonts.body,
+    cursor: 'pointer',
+  },
+  buttonSecondary: {
+    padding: '0.7rem 1.1rem',
+    borderRadius: '8px',
+    border: `1px solid ${colors.border}`,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontWeight: 600,
+    fontFamily: fonts.body,
+    cursor: 'pointer',
+  },
+  buttonDanger: {
+    padding: '0.7rem 1.1rem',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: colors.danger,
+    color: '#fff',
+    fontWeight: 600,
+    fontFamily: fonts.body,
+    cursor: 'pointer',
+  },
+  tableCell: {
+    padding: '0.85rem 0.6rem',
+    verticalAlign: 'top',
+    fontFamily: fonts.body,
+  },
+  tableHeaderCell: {
+    padding: '0.85rem 0.6rem',
+    textAlign: 'left',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
+    borderBottom: `1px solid ${colors.border}`,
+  },
+};

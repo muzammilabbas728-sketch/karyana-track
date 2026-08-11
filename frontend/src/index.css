@@ -1,0 +1,25 @@
+:root {
+  --color-bg: #FAFAF8;
+  --color-surface: #FFFFFF;
+  --color-ink: #1C1917;
+  --color-muted: #6B6459;
+  --color-primary: #2F6844;
+  --color-primary-hover: #24512F;
+  --color-warning: #B7791F;
+  --color-danger: #B42318;
+  --color-border: #E7E4DD;
+  --font-display: 'Fraunces', serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
