@@ -82,3 +82,36 @@ export function getLowStock() {
     method: "GET",
   });
 }
+
+export function createProduct(product) {
+  return apiRequest("/products", {
+    method: "POST",
+    body: product,
+  });
+}
+
+export function updateProduct(productId, updates) {
+  return apiRequest(`/products/${productId}`, {
+    method: "PUT",
+    body: updates,
+  });
+}
+
+export function deleteProduct(productId) {
+  return apiRequest(`/products/${productId}`, {
+    method: "DELETE",
+  });
+}
+
+export function getStockHistory(productId) {
+  return apiRequest(`/products/${productId}/stock-history`, {
+    method: "GET",
+  });
+}
+
+export function adjustStock(productId, changeAmount, reason) {
+  return apiRequest(`/products/${productId}/adjust-stock`, {
+    method: "POST",
+    body: { change_amount: changeAmount, reason },
+  });
+}

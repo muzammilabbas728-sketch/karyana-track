@@ -2,6 +2,7 @@ import { useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import SalesScreen from "./pages/SalesScreen";
 import OwnerDashboard from "./pages/OwnerDashboard";
+import InventoryPage from "./pages/InventoryPage";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -93,26 +94,46 @@ export default function App() {
             Sales
           </button>
           {isOwner ? (
-            <button
-              type="button"
-              onClick={() => setActiveView("dashboard")}
-              style={{
-                padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor:
-                  activeView === "dashboard" ? "#2563eb" : "#e2e8f0",
-                color: activeView === "dashboard" ? "white" : "#1f2937",
-                cursor: "pointer",
-              }}
-            >
-              Dashboard
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveView("dashboard")}
+                style={{
+                  padding: "0.75rem 1rem",
+                  marginRight: "0.5rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor:
+                    activeView === "dashboard" ? "#2563eb" : "#e2e8f0",
+                  color: activeView === "dashboard" ? "white" : "#1f2937",
+                  cursor: "pointer",
+                }}
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView("inventory")}
+                style={{
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor:
+                    activeView === "inventory" ? "#2563eb" : "#e2e8f0",
+                  color: activeView === "inventory" ? "white" : "#1f2937",
+                  cursor: "pointer",
+                }}
+              >
+                Inventory
+              </button>
+            </>
           ) : null}
         </div>
 
         {activeView === "dashboard" && isOwner ? (
           <OwnerDashboard />
+        ) : activeView === "inventory" && isOwner ? (
+          <InventoryPage />
         ) : (
           <SalesScreen />
         )}
