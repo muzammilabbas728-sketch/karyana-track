@@ -1,4 +1,4 @@
-const BASE_URL = "http://192.168.1.3:8000"; // TODO: use VITE_API_BASE_URL from env in the future
+const BASE_URL = "http://192.168.1.7:8000"; // TODO: use VITE_API_BASE_URL from env in the future
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";

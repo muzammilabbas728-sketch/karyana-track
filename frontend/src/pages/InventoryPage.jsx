@@ -7,6 +7,7 @@ import {
   getStockHistory,
   adjustStock,
 } from "../api/client";
+import { colors, fonts, styles } from "../theme";
 
 function createEmptyProductForm() {
   return {
@@ -259,14 +260,12 @@ export default function InventoryPage() {
   return (
     <section
       style={{
-        padding: "1rem",
-        borderRadius: "12px",
-        background: "#fff",
+        ...styles.card,
         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <h2 style={{ margin: 0 }}>Inventory</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", margin: 0 }}>Inventory</h2>
         <button
           type="button"
           onClick={() => {
@@ -277,13 +276,7 @@ export default function InventoryPage() {
             }
           }}
           style={{
-            padding: "0.75rem 1rem",
-            borderRadius: "8px",
-            border: "none",
-            backgroundColor: "#2563eb",
-            color: "white",
-            fontWeight: "600",
-            cursor: "pointer",
+            ...styles.buttonPrimary,
           }}
         >
           {showAddForm ? "Cancel" : "Add Product"}
@@ -291,8 +284,8 @@ export default function InventoryPage() {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        {error ? <p style={{ color: "#dc2626", margin: 0 }}>{error}</p> : null}
-        {successMessage ? <p style={{ color: "#15803d", margin: 0 }}>{successMessage}</p> : null}
+        {error ? <p style={{ color: colors.danger, margin: 0 }}>{error}</p> : null}
+        {successMessage ? <p style={{ color: colors.primary, margin: 0 }}>{successMessage}</p> : null}
       </div>
 
       {showAddForm ? (
@@ -302,44 +295,51 @@ export default function InventoryPage() {
             display: "grid",
             gap: "0.75rem",
             marginBottom: "1rem",
-            padding: "1rem",
-            borderRadius: "10px",
-            background: "#f8fafc",
+            ...styles.card,
           }}
         >
           <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-            <label>
+            <label style={styles.label}>
               Name
               <input
                 name="name"
                 value={newProduct.name}
                 onChange={handleNewProductChange}
                 required
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               Barcode
               <input
                 name="barcode"
                 value={newProduct.barcode}
                 onChange={handleNewProductChange}
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               Unit Type
               <select
                 name="unit_type"
                 value={newProduct.unit_type}
                 onChange={handleNewProductChange}
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               >
                 <option value="piece">Piece</option>
                 <option value="weight">Weight (grams)</option>
               </select>
             </label>
-            <label>
+            <label style={styles.label}>
               {newProduct.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
               <input
                 name="cost_price"
@@ -348,10 +348,13 @@ export default function InventoryPage() {
                 value={newProduct.cost_price}
                 onChange={handleNewProductChange}
                 required
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               {newProduct.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
               <input
                 name="selling_price"
@@ -360,10 +363,13 @@ export default function InventoryPage() {
                 value={newProduct.selling_price}
                 onChange={handleNewProductChange}
                 required
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               {newProduct.unit_type === "weight" ? "Quantity in Stock (kg)" : "Quantity in Stock"}
               <input
                 name="quantity_in_stock"
@@ -371,10 +377,13 @@ export default function InventoryPage() {
                 value={newProduct.quantity_in_stock}
                 onChange={handleNewProductChange}
                 required
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               {newProduct.unit_type === "weight" ? "Low Stock Threshold (kg)" : "Low Stock Threshold"}
               <input
                 name="low_stock_threshold"
@@ -382,11 +391,14 @@ export default function InventoryPage() {
                 value={newProduct.low_stock_threshold}
                 onChange={handleNewProductChange}
                 required
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
           </div>
-          <button type="submit" style={buttonStyle}>
+          <button type="submit" style={styles.buttonPrimary}>
             Save Product
           </button>
         </form>
@@ -400,51 +412,51 @@ export default function InventoryPage() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
-                <th style={cellStyle}>Name</th>
-                <th style={cellStyle}>Barcode</th>
-                <th style={cellStyle}>Type</th>
-                <th style={cellStyle}>Cost</th>
-                <th style={cellStyle}>Selling</th>
-                <th style={cellStyle}>Qty</th>
-                <th style={cellStyle}>Low Stock</th>
-                <th style={cellStyle}>Actions</th>
+              <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
+                <th style={styles.tableHeaderCell}>Name</th>
+                <th style={styles.tableHeaderCell}>Barcode</th>
+                <th style={styles.tableHeaderCell}>Type</th>
+                <th style={styles.tableHeaderCell}>Cost</th>
+                <th style={styles.tableHeaderCell}>Selling</th>
+                <th style={styles.tableHeaderCell}>Qty</th>
+                <th style={styles.tableHeaderCell}>Low Stock</th>
+                <th style={styles.tableHeaderCell}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.map((product) => (
-                <tr key={product.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <tr key={product.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
                   {editingProductId === product.id ? (
                     <>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         <input
                           name="name"
                           value={editValues.name}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         <input
                           name="barcode"
                           value={editValues.barcode}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         <select
                           name="unit_type"
                           value={editValues.unit_type}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         >
                           <option value="piece">Piece</option>
                           <option value="weight">Weight (grams)</option>
                         </select>
                       </td>
-                      <td style={cellStyle}>
-                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                      <td style={styles.tableCell}>
+                        <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
                           {editValues.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
                         </label>
                         <input
@@ -453,11 +465,11 @@ export default function InventoryPage() {
                           step="0.01"
                           value={editValues.cost_price}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
-                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                      <td style={styles.tableCell}>
+                        <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
                           {editValues.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
                         </label>
                         <input
@@ -466,11 +478,11 @@ export default function InventoryPage() {
                           step="0.01"
                           value={editValues.selling_price}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
-                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                      <td style={styles.tableCell}>
+                        <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
                           {editValues.unit_type === "weight" ? "Qty (kg)" : "Qty"}
                         </label>
                         <input
@@ -478,11 +490,11 @@ export default function InventoryPage() {
                           type="number"
                           value={editValues.quantity_in_stock}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
-                        <label style={{ display: "block", fontSize: "0.9rem" }}>
+                      <td style={styles.tableCell}>
+                        <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
                           {editValues.unit_type === "weight" ? "Low Stock Threshold (kg)" : "Low Stock Threshold"}
                         </label>
                         <input
@@ -490,15 +502,15 @@ export default function InventoryPage() {
                           type="number"
                           value={editValues.low_stock_threshold}
                           onChange={handleEditChange}
-                          style={inputStyle}
+                          style={styles.input}
                         />
                       </td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                          <button type="button" onClick={handleSaveEdit} style={buttonStyle}>
+                          <button type="button" onClick={handleSaveEdit} style={styles.buttonPrimary}>
                             Save
                           </button>
-                          <button type="button" onClick={cancelEditing} style={secondaryButtonStyle}>
+                          <button type="button" onClick={cancelEditing} style={styles.buttonSecondary}>
                             Cancel
                           </button>
                         </div>
@@ -506,33 +518,33 @@ export default function InventoryPage() {
                     </>
                   ) : (
                     <>
-                      <td style={cellStyle}>{product.name}</td>
-                      <td style={cellStyle}>{product.barcode || "—"}</td>
-                      <td style={cellStyle}>{product.unit_type === "weight" ? "Weight (g)" : "Piece"}</td>
-                      <td style={cellStyle}>{product.cost_price}</td>
-                      <td style={cellStyle}>{product.selling_price}</td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>{product.name}</td>
+                      <td style={styles.tableCell}>{product.barcode || "—"}</td>
+                      <td style={styles.tableCell}>{product.unit_type === "weight" ? "Weight (g)" : "Piece"}</td>
+                      <td style={styles.tableCell}>{product.cost_price}</td>
+                      <td style={styles.tableCell}>{product.selling_price}</td>
+                      <td style={styles.tableCell}>
                         {product.unit_type === "weight"
                           ? (product.quantity_in_stock / 1000).toFixed(2)
                           : product.quantity_in_stock}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         {product.unit_type === "weight"
                           ? (product.low_stock_threshold / 1000).toFixed(2)
                           : product.low_stock_threshold}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={styles.tableCell}>
                         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                          <button type="button" onClick={() => startEditing(product)} style={secondaryButtonStyle}>
+                          <button type="button" onClick={() => startEditing(product)} style={styles.buttonSecondary}>
                             Edit
                           </button>
-                          <button type="button" onClick={() => startAdjusting(product)} style={secondaryButtonStyle}>
+                          <button type="button" onClick={() => startAdjusting(product)} style={styles.buttonSecondary}>
                             Adjust Stock
                           </button>
-                          <button type="button" onClick={() => openHistory(product.id)} style={secondaryButtonStyle}>
+                          <button type="button" onClick={() => openHistory(product.id)} style={styles.buttonSecondary}>
                             History
                           </button>
-                          <button type="button" onClick={() => handleDelete(product)} style={dangerButtonStyle}>
+                          <button type="button" onClick={() => handleDelete(product)} style={styles.buttonDanger}>
                             Delete
                           </button>
                         </div>
@@ -550,29 +562,32 @@ export default function InventoryPage() {
         <div
           style={{
             marginTop: "1rem",
-            padding: "1rem",
-            borderRadius: "10px",
-            background: "#f8fafc",
-            border: "1px solid #e5e7eb",
+            ...styles.card,
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Adjust Stock</h3>
+          <h3 style={{ ...styles.pageTitle, marginTop: 0 }}>Adjust Stock</h3>
           <form onSubmit={handleAdjustSubmit} style={{ display: "grid", gap: "0.75rem" }}>
-            <label>
+            <label style={styles.label}>
               Amount
               <input
                 type="number"
                 value={adjustAmount}
                 onChange={(event) => setAdjustAmount(event.target.value)}
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               />
             </label>
-            <label>
+            <label style={styles.label}>
               Reason
               <select
                 value={adjustReason}
                 onChange={(event) => setAdjustReason(event.target.value)}
-                style={inputStyle}
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
               >
                 <option value="restock">Restock</option>
                 <option value="damaged">Damaged</option>
@@ -581,7 +596,7 @@ export default function InventoryPage() {
               </select>
             </label>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button type="submit" style={buttonStyle}>
+              <button type="submit" style={styles.buttonPrimary}>
                 Submit
               </button>
               <button
@@ -591,7 +606,7 @@ export default function InventoryPage() {
                   setAdjustAmount("");
                   setAdjustReason("restock");
                 }}
-                style={secondaryButtonStyle}
+                style={styles.buttonSecondary}
               >
                 Cancel
               </button>
@@ -604,15 +619,12 @@ export default function InventoryPage() {
         <div
           style={{
             marginTop: "1rem",
-            padding: "1rem",
-            borderRadius: "10px",
-            background: "#f8fafc",
-            border: "1px solid #e5e7eb",
+            ...styles.card,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ marginTop: 0 }}>Stock History</h3>
-            <button type="button" onClick={closeHistory} style={secondaryButtonStyle}>
+            <h3 style={{ ...styles.pageTitle, marginTop: 0 }}>Stock History</h3>
+            <button type="button" onClick={closeHistory} style={styles.buttonSecondary}>
               Close
             </button>
           </div>
@@ -622,20 +634,20 @@ export default function InventoryPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
-                    <th style={cellStyle}>Change</th>
-                    <th style={cellStyle}>Reason</th>
-                    <th style={cellStyle}>User</th>
-                    <th style={cellStyle}>Date</th>
+                  <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
+                    <th style={styles.tableHeaderCell}>Change</th>
+                    <th style={styles.tableHeaderCell}>Reason</th>
+                    <th style={styles.tableHeaderCell}>User</th>
+                    <th style={styles.tableHeaderCell}>Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {historyItems.map((item, index) => (
-                    <tr key={`${item.created_at}-${index}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={cellStyle}>{item.change_amount}</td>
-                      <td style={cellStyle}>{item.reason || "—"}</td>
-                      <td style={cellStyle}>{item.user_name || "—"}</td>
-                      <td style={cellStyle}>{item.created_at || "—"}</td>
+                    <tr key={`${item.created_at}-${index}`} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                      <td style={styles.tableCell}>{item.change_amount}</td>
+                      <td style={styles.tableCell}>{item.reason || "—"}</td>
+                      <td style={styles.tableCell}>{item.user_name || "—"}</td>
+                      <td style={styles.tableCell}>{item.created_at || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -647,46 +659,3 @@ export default function InventoryPage() {
     </section>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "0.7rem",
-  borderRadius: "8px",
-  border: "1px solid #cbd5e1",
-  marginTop: "0.35rem",
-};
-
-const buttonStyle = {
-  padding: "0.7rem 0.9rem",
-  borderRadius: "8px",
-  border: "none",
-  backgroundColor: "#2563eb",
-  color: "white",
-  fontWeight: "600",
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle = {
-  padding: "0.7rem 0.9rem",
-  borderRadius: "8px",
-  border: "1px solid #cbd5e1",
-  backgroundColor: "#fff",
-  color: "#1f2937",
-  fontWeight: "600",
-  cursor: "pointer",
-};
-
-const dangerButtonStyle = {
-  padding: "0.7rem 0.9rem",
-  borderRadius: "8px",
-  border: "none",
-  backgroundColor: "#dc2626",
-  color: "white",
-  fontWeight: "600",
-  cursor: "pointer",
-};
-
-const cellStyle = {
-  padding: "0.75rem 0.5rem",
-  verticalAlign: "top",
-};

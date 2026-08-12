@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login } from "../api/client";
+import { colors, fonts, styles } from "../theme";
 
 export default function LoginPage({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
@@ -33,7 +34,7 @@ export default function LoginPage({ onLoginSuccess }) {
         alignItems: "center",
         justifyContent: "center",
         padding: "1rem",
-        background: "#f5f7fb",
+        background: colors.bg,
       }}
     >
       <form
@@ -41,63 +42,51 @@ export default function LoginPage({ onLoginSuccess }) {
         style={{
           width: "100%",
           maxWidth: "400px",
-          padding: "2rem",
-          border: "1px solid #ddd",
-          borderRadius: "12px",
-          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
-          background: "#fff",
+          ...styles.card,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
         }}
       >
-        <h2 style={{ marginBottom: "1rem" }}>Log In</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.6rem", marginBottom: "1rem" }}>
+          Log In
+        </h2>
 
-        <label style={{ display: "block", marginBottom: "0.75rem" }}>
+        <label style={{ display: "block", marginBottom: "0.75rem", ...styles.label }}>
           Username
           <input
             type="text"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             style={{
-              width: "100%",
-              padding: "0.75rem",
+              ...styles.input,
               marginTop: "0.5rem",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
             }}
           />
         </label>
 
-        <label style={{ display: "block", marginBottom: "1rem" }}>
+        <label style={{ display: "block", marginBottom: "1rem", ...styles.label }}>
           PIN
           <input
             type="password"
             value={pin}
             onChange={(event) => setPin(event.target.value)}
             style={{
-              width: "100%",
-              padding: "0.75rem",
+              ...styles.input,
               marginTop: "0.5rem",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
             }}
           />
         </label>
 
         {error ? (
-          <p style={{ color: "#d00", marginBottom: "1rem" }}>{error}</p>
+          <p style={{ color: colors.danger, marginBottom: "1rem" }}>{error}</p>
         ) : null}
 
         <button
           type="submit"
           disabled={loading}
           style={{
+            ...styles.buttonPrimary,
             width: "100%",
-            padding: "0.85rem",
-            borderRadius: "8px",
-            border: "none",
-            backgroundColor: "#2563eb",
-            color: "white",
-            fontWeight: "600",
-            cursor: loading ? "not-allowed" : "pointer",
+            backgroundColor: loading ? colors.muted : colors.primary,
           }}
         >
           {loading ? "Logging in..." : "Log In"}

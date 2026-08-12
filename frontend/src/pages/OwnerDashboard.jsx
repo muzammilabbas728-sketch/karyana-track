@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getDailyReport, getRangeReport, getLowStock } from "../api/client";
+import { colors, fonts, styles } from "../theme";
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
@@ -56,13 +57,11 @@ export default function OwnerDashboard() {
     >
       <section
         style={{
-          padding: "1rem",
-          borderRadius: "12px",
-          background: "#fff",
+          ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
         }}
       >
-        <h2>Today's Summary</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", marginBottom: "1rem" }}>Today's Summary</h2>
         {loading ? (
           <p>Loading summary...</p>
         ) : (
@@ -70,8 +69,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Sales Count</strong>
@@ -80,8 +78,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Total Revenue</strong>
@@ -90,8 +87,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Total Profit</strong>
@@ -103,13 +99,11 @@ export default function OwnerDashboard() {
 
       <section
         style={{
-          padding: "1rem",
-          borderRadius: "12px",
-          background: "#fff",
+          ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
         }}
       >
-        <h2>Date Range Report</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", marginBottom: "1rem" }}>Date Range Report</h2>
         <div
           style={{
             display: "grid",
@@ -117,32 +111,26 @@ export default function OwnerDashboard() {
             marginBottom: "1rem",
           }}
         >
-          <label style={{ display: "block" }}>
+          <label style={{ display: "block", ...styles.label }}>
             From
             <input
               type="date"
               value={fromDate}
               onChange={(event) => setFromDate(event.target.value)}
               style={{
-                width: "100%",
-                padding: "0.75rem",
-                borderRadius: "8px",
-                border: "1px solid #ccc",
+                ...styles.input,
                 marginTop: "0.5rem",
               }}
             />
           </label>
-          <label style={{ display: "block" }}>
+          <label style={{ display: "block", ...styles.label }}>
             To
             <input
               type="date"
               value={toDate}
               onChange={(event) => setToDate(event.target.value)}
               style={{
-                width: "100%",
-                padding: "0.75rem",
-                borderRadius: "8px",
-                border: "1px solid #ccc",
+                ...styles.input,
                 marginTop: "0.5rem",
               }}
             />
@@ -151,13 +139,8 @@ export default function OwnerDashboard() {
             type="button"
             onClick={handleRunReport}
             style={{
-              padding: "0.85rem",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "#2563eb",
-              color: "white",
-              fontWeight: "600",
-              cursor: "pointer",
+              ...styles.buttonPrimary,
+              width: "100%",
             }}
           >
             Run Report
@@ -169,8 +152,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Sales Count</strong>
@@ -179,8 +161,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Total Revenue</strong>
@@ -189,8 +170,7 @@ export default function OwnerDashboard() {
             <div
               style={{
                 padding: "1rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Total Profit</strong>
@@ -204,15 +184,13 @@ export default function OwnerDashboard() {
 
       <section
         style={{
-          padding: "1rem",
-          borderRadius: "12px",
-          background: "#fff",
+          ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
           gridColumn: "1 / -1",
         }}
       >
-        <h2>Low Stock Alerts</h2>
-        {error ? <p style={{ color: "#d00" }}>{error}</p> : null}
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", marginBottom: "1rem" }}>Low Stock Alerts</h2>
+        {error ? <p style={{ color: colors.danger }}>{error}</p> : null}
         {loading ? (
           <p>Loading low stock alerts...</p>
         ) : lowStock.length === 0 ? (
@@ -224,10 +202,8 @@ export default function OwnerDashboard() {
                 key={item.product_id ?? item.id ?? item.name}
                 style={{
                   padding: "1rem",
-                  borderRadius: "10px",
-                  background: "#fff7ed",
-                  border: "1px solid #fb923c",
-                  color: "#b45309",
+                  ...styles.cardAccent(colors.warning),
+                  color: colors.warning,
                 }}
               >
                 {item.unit_type === "weight"

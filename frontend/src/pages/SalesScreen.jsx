@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getProducts, createSale } from "../api/client";
+import { colors, fonts, styles } from "../theme";
 
 export default function SalesScreen() {
   const [products, setProducts] = useState([]);
@@ -137,13 +138,11 @@ export default function SalesScreen() {
       <section
         style={{
           flex: 2,
-          padding: "1rem",
-          borderRadius: "12px",
-          background: "#fff",
+          ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
         }}
       >
-        <h2>Products</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", marginBottom: "1rem" }}>Products</h2>
         <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
@@ -151,10 +150,7 @@ export default function SalesScreen() {
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search products"
             style={{
-              width: "100%",
-              padding: "0.75rem",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
+              ...styles.input,
             }}
           />
         </div>
@@ -171,13 +167,13 @@ export default function SalesScreen() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "0.85rem",
-                  border: "1px solid #e5e7eb",
+                  border: `1px solid ${colors.border}`,
                   borderRadius: "10px",
                 }}
               >
                 <div>
                   <strong>{product.name}</strong>
-                  <div style={{ color: "#6b7280" }}>Rs. {product.selling_price}</div>
+                  <div style={{ color: colors.muted }}>Rs. {product.selling_price}</div>
                 </div>
                 {weightEntryProductId === product.id ? (
                   <div
@@ -196,18 +192,15 @@ export default function SalesScreen() {
                         placeholder="Amount"
                         style={{
                           width: "90px",
-                          padding: "0.5rem",
-                          borderRadius: "8px",
-                          border: "1px solid #ccc",
+                          ...styles.input,
                         }}
                       />
                       <select
                         value={weightEntryUnit}
                         onChange={(event) => setWeightEntryUnit(event.target.value)}
                         style={{
-                          padding: "0.5rem",
-                          borderRadius: "8px",
-                          border: "1px solid #ccc",
+                          ...styles.input,
+                          width: "auto",
                         }}
                       >
                         <option value="g">g</option>
@@ -233,12 +226,8 @@ export default function SalesScreen() {
                           setError(null);
                         }}
                         style={{
+                          ...styles.buttonPrimary,
                           padding: "0.5rem 0.75rem",
-                          borderRadius: "8px",
-                          border: "none",
-                          backgroundColor: "#16a34a",
-                          color: "white",
-                          cursor: "pointer",
                         }}
                       >
                         Add
@@ -252,11 +241,8 @@ export default function SalesScreen() {
                           setError(null);
                         }}
                         style={{
+                          ...styles.buttonSecondary,
                           padding: "0.5rem 0.75rem",
-                          borderRadius: "8px",
-                          border: "1px solid #d1d5db",
-                          background: "#f9fafb",
-                          cursor: "pointer",
                         }}
                       >
                         Cancel
@@ -277,12 +263,8 @@ export default function SalesScreen() {
                       setWeightEntryUnit("g");
                     }}
                     style={{
+                      ...styles.buttonPrimary,
                       padding: "0.5rem 0.75rem",
-                      borderRadius: "8px",
-                      border: "none",
-                      backgroundColor: "#2563eb",
-                      color: "white",
-                      cursor: "pointer",
                     }}
                   >
                     Add to Cart
@@ -300,20 +282,18 @@ export default function SalesScreen() {
       <section
         style={{
           flex: 1,
-          padding: "1rem",
-          borderRadius: "12px",
-          background: "#fff",
+          ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
           minWidth: "320px",
         }}
       >
-        <h2>Cart</h2>
+        <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", marginBottom: "1rem" }}>Cart</h2>
 
         {error ? (
-          <p style={{ color: "#d00" }}>{error}</p>
+          <p style={{ color: colors.danger }}>{error}</p>
         ) : null}
         {successMessage ? (
-          <p style={{ color: "#166534" }}>{successMessage}</p>
+          <p style={{ color: colors.primary }}>{successMessage}</p>
         ) : null}
 
         {cart.length === 0 ? (
@@ -325,7 +305,7 @@ export default function SalesScreen() {
                 key={item.product_id}
                 style={{
                   padding: "0.85rem",
-                  border: "1px solid #e5e7eb",
+                  border: `1px solid ${colors.border}`,
                   borderRadius: "10px",
                 }}
               >
@@ -344,7 +324,7 @@ export default function SalesScreen() {
                     style={{
                       border: "none",
                       background: "transparent",
-                      color: "#dc2626",
+                      color: colors.danger,
                       cursor: "pointer",
                     }}
                   >
@@ -365,11 +345,8 @@ export default function SalesScreen() {
                       type="button"
                       onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? -50 : -1)}
                       style={{
+                        ...styles.buttonSecondary,
                         padding: "0.35rem 0.6rem",
-                        borderRadius: "8px",
-                        border: "1px solid #d1d5db",
-                        background: "#f9fafb",
-                        cursor: "pointer",
                         marginRight: "0.5rem",
                       }}
                     >
@@ -386,11 +363,8 @@ export default function SalesScreen() {
                       type="button"
                       onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? 50 : 1)}
                       style={{
+                        ...styles.buttonSecondary,
                         padding: "0.35rem 0.6rem",
-                        borderRadius: "8px",
-                        border: "1px solid #d1d5db",
-                        background: "#f9fafb",
-                        cursor: "pointer",
                         marginLeft: "0.5rem",
                       }}
                     >
@@ -415,9 +389,7 @@ export default function SalesScreen() {
             <div
               style={{
                 padding: "0.85rem",
-                borderRadius: "10px",
-                background: "#f8fafc",
-                border: "1px solid #e5e7eb",
+                ...styles.cardAccent(colors.primary),
               }}
             >
               <strong>Grand Total:</strong>
@@ -429,14 +401,9 @@ export default function SalesScreen() {
               onClick={handleCompleteSale}
               disabled={cart.length === 0 || submitting}
               style={{
+                ...styles.buttonPrimary,
                 width: "100%",
-                padding: "0.85rem",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor: cart.length === 0 || submitting ? "#94a3b8" : "#16a34a",
-                color: "white",
-                fontWeight: "600",
-                cursor: cart.length === 0 || submitting ? "not-allowed" : "pointer",
+                backgroundColor: cart.length === 0 || submitting ? colors.muted : colors.primary,
               }}
             >
               {submitting ? "Completing sale..." : "Complete Sale"}
