@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import SalesScreen from "./pages/SalesScreen";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import InventoryPage from "./pages/InventoryPage";
+import UsersPage from "./pages/UsersPage";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -149,6 +150,37 @@ export default function App() {
               >
                 Inventory
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("users")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "users") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "users") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "users" ? colors.primary : "transparent",
+                  color: activeView === "users" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
+                }}
+              >
+                Users
+              </button>
             </>
           ) : null}
         </div>
@@ -178,6 +210,8 @@ export default function App() {
           <OwnerDashboard />
         ) : activeView === "inventory" && isOwner ? (
           <InventoryPage />
+        ) : activeView === "users" && isOwner ? (
+          <UsersPage />
         ) : (
           <SalesScreen />
         )}
@@ -185,3 +219,4 @@ export default function App() {
     </div>
   );
 }
+

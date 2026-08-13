@@ -1,4 +1,4 @@
-const BASE_URL = "http://192.168.1.7:8000"; // TODO: use VITE_API_BASE_URL from env in the future
+const BASE_URL = "http://192.168.1.5:8000"; // TODO: use VITE_API_BASE_URL from env in the future
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
@@ -115,3 +115,24 @@ export function adjustStock(productId, changeAmount, reason) {
     body: { change_amount: changeAmount, reason },
   });
 }
+
+export function getUsers() {
+  return apiRequest("/users", {
+    method: "GET",
+  });
+}
+
+export function createUser(user) {
+  return apiRequest("/users", {
+    method: "POST",
+    body: user,
+  });
+}
+
+export function changeUserPin(userId, newPin) {
+  return apiRequest(`/users/${userId}/pin`, {
+    method: "PUT",
+    body: { new_pin: newPin },
+  });
+}
+

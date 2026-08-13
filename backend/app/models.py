@@ -129,3 +129,31 @@ class LoginResponse(BaseModel):
     token: str = Field(..., description="Authentication token")
     role: str = Field(..., description="User role")
     name: str = Field(..., description="User display name")
+
+
+class UserCreate(BaseModel):
+    """Schema used to create a new user."""
+
+    name: str = Field(..., description="User full name")
+    username: str = Field(..., description="Username")
+    pin: str = Field(..., min_length=4, description="User PIN")
+    role: Literal["owner", "staff"] = Field(..., description="User role")
+
+
+class UserResponse(BaseModel):
+    """Response payload representing a user."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="User identifier")
+    name: str = Field(..., description="User full name")
+    username: str = Field(..., description="Username")
+    role: str = Field(..., description="User role")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+
+class PinChangeRequest(BaseModel):
+    """Schema used to update a user's PIN."""
+
+    new_pin: str = Field(..., min_length=4, description="New PIN")
+
