@@ -14,9 +14,14 @@ class ProductCreate(BaseModel):
     cost_price: float = Field(..., ge=0, description="Cost price of the product")
     selling_price: float = Field(..., ge=0, description="Selling price of the product")
     quantity_in_stock: int = Field(..., ge=0, description="Current stock quantity")
-    unit_type: Literal["piece", "weight"] = Field(
+    unit_type: Literal["piece", "weight", "pack"] = Field(
         default="piece",
-        description="Whether this product is sold as whole units or by weight in grams",
+        description="Whether this product is sold as whole units or by weight in grams or as packs",
+    )
+    units_per_pack: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description="Number of individual units in one pack (required when unit_type is 'pack')",
     )
     low_stock_threshold: int = Field(default=5, ge=0, description="Threshold for low stock warnings")
 
@@ -29,10 +34,11 @@ class ProductUpdate(BaseModel):
     cost_price: Optional[float] = Field(default=None, ge=0, description="Cost price of the product")
     selling_price: Optional[float] = Field(default=None, ge=0, description="Selling price of the product")
     quantity_in_stock: Optional[int] = Field(default=None, ge=0, description="Current stock quantity")
-    unit_type: Optional[Literal["piece", "weight"]] = Field(
+    unit_type: Optional[Literal["piece", "weight", "pack"]] = Field(
         default=None,
-        description="Whether this product is sold as whole units or by weight in grams",
+        description="Whether this product is sold as whole units or by weight in grams or as packs",
     )
+    units_per_pack: Optional[int] = Field(default=None, gt=0)
     low_stock_threshold: Optional[int] = Field(default=None, ge=0, description="Threshold for low stock warnings")
 
 
@@ -47,7 +53,8 @@ class ProductResponse(BaseModel):
     cost_price: float = Field(..., ge=0, description="Cost price of the product")
     selling_price: float = Field(..., ge=0, description="Selling price of the product")
     quantity_in_stock: int = Field(..., description="Current stock quantity")
-    unit_type: str = Field(..., description="Whether this product is sold as whole units or by weight in grams")
+    unit_type: str = Field(..., description="Whether this product is sold as whole units or by weight in grams or as packs")
+    units_per_pack: Optional[int] = Field(default=None)
     low_stock_threshold: int = Field(..., description="Threshold for low stock warnings")
     is_active: bool = Field(..., description="Whether the product is active")
     created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
@@ -82,6 +89,10 @@ class SaleItemRequest(BaseModel):
 
     product_id: int = Field(..., description="Identifier of the product being sold")
     quantity: int = Field(..., gt=0, description="Quantity to sell")
+    sell_as_pack: bool = Field(
+        default=False,
+        description="For pack-type products, whether this line item sells one full pack (true) or individual loose units (false)",
+    )
 
 
 class SaleCreate(BaseModel):

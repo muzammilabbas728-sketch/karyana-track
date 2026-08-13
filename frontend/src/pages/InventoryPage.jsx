@@ -14,6 +14,7 @@ function createEmptyProductForm() {
     name: "",
     barcode: "",
     unit_type: "piece",
+    units_per_pack: "",
     cost_price: "",
     selling_price: "",
     quantity_in_stock: "",
@@ -82,6 +83,8 @@ export default function InventoryPage() {
       name: newProduct.name.trim(),
       barcode: newProduct.barcode.trim() || null,
       unit_type: newProduct.unit_type,
+      units_per_pack:
+        newProduct.unit_type === "pack" ? Number(newProduct.units_per_pack) : null,
       cost_price: Number(newProduct.cost_price),
       selling_price: Number(newProduct.selling_price),
       quantity_in_stock:
@@ -123,6 +126,7 @@ export default function InventoryPage() {
       name: product.name || "",
       barcode: product.barcode || "",
       unit_type: product.unit_type || "piece",
+      units_per_pack: toInputValue(product.units_per_pack),
       cost_price: toInputValue(product.cost_price),
       selling_price: toInputValue(product.selling_price),
       quantity_in_stock: toInputValue(
@@ -142,6 +146,8 @@ export default function InventoryPage() {
       name: editValues.name.trim(),
       barcode: editValues.barcode.trim() || null,
       unit_type: editValues.unit_type,
+      units_per_pack:
+        editValues.unit_type === "pack" ? Number(editValues.units_per_pack) : null,
       cost_price: Number(editValues.cost_price),
       selling_price: Number(editValues.selling_price),
       quantity_in_stock:
@@ -337,10 +343,31 @@ export default function InventoryPage() {
               >
                 <option value="piece">Piece</option>
                 <option value="weight">Weight (grams)</option>
+                <option value="pack">Pack</option>
               </select>
             </label>
+            {newProduct.unit_type === "pack" ? (
+              <label style={styles.label}>
+                Units Per Pack
+                <input
+                  name="units_per_pack"
+                  type="number"
+                  value={newProduct.units_per_pack}
+                  onChange={handleNewProductChange}
+                  required
+                  style={{
+                    ...styles.input,
+                    marginTop: "0.35rem",
+                  }}
+                />
+              </label>
+            ) : null}
             <label style={styles.label}>
-              {newProduct.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
+              {newProduct.unit_type === "weight"
+                ? "Cost Price (per kg)"
+                : newProduct.unit_type === "pack"
+                  ? "Cost Price (per pack)"
+                  : "Cost Price"}
               <input
                 name="cost_price"
                 type="number"
@@ -355,7 +382,11 @@ export default function InventoryPage() {
               />
             </label>
             <label style={styles.label}>
-              {newProduct.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
+              {newProduct.unit_type === "weight"
+                ? "Selling Price (per kg)"
+                : newProduct.unit_type === "pack"
+                  ? "Selling Price (per pack)"
+                  : "Selling Price"}
               <input
                 name="selling_price"
                 type="number"
@@ -453,11 +484,30 @@ export default function InventoryPage() {
                         >
                           <option value="piece">Piece</option>
                           <option value="weight">Weight (grams)</option>
+                          <option value="pack">Pack</option>
                         </select>
+                        {editValues.unit_type === "pack" ? (
+                          <div style={{ marginTop: "0.35rem" }}>
+                            <label style={{ ...styles.label, display: "block", fontSize: "0.8rem" }}>
+                              Units Per Pack
+                            </label>
+                            <input
+                              name="units_per_pack"
+                              type="number"
+                              value={editValues.units_per_pack}
+                              onChange={handleEditChange}
+                              style={styles.input}
+                            />
+                          </div>
+                        ) : null}
                       </td>
                       <td style={styles.tableCell}>
                         <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
-                          {editValues.unit_type === "weight" ? "Cost Price (per kg)" : "Cost Price"}
+                          {editValues.unit_type === "weight"
+                            ? "Cost Price (per kg)"
+                            : editValues.unit_type === "pack"
+                              ? "Cost Price (per pack)"
+                              : "Cost Price"}
                         </label>
                         <input
                           name="cost_price"
@@ -470,7 +520,11 @@ export default function InventoryPage() {
                       </td>
                       <td style={styles.tableCell}>
                         <label style={{ ...styles.label, display: "block", fontSize: "0.9rem" }}>
-                          {editValues.unit_type === "weight" ? "Selling Price (per kg)" : "Selling Price"}
+                          {editValues.unit_type === "weight"
+                            ? "Selling Price (per kg)"
+                            : editValues.unit_type === "pack"
+                              ? "Selling Price (per pack)"
+                              : "Selling Price"}
                         </label>
                         <input
                           name="selling_price"
@@ -520,7 +574,13 @@ export default function InventoryPage() {
                     <>
                       <td style={styles.tableCell}>{product.name}</td>
                       <td style={styles.tableCell}>{product.barcode || "—"}</td>
-                      <td style={styles.tableCell}>{product.unit_type === "weight" ? "Weight (g)" : "Piece"}</td>
+                      <td style={styles.tableCell}>
+                        {product.unit_type === "weight"
+                          ? "Weight (g)"
+                          : product.unit_type === "pack"
+                            ? "Pack"
+                            : "Piece"}
+                      </td>
                       <td style={styles.tableCell}>{product.cost_price}</td>
                       <td style={styles.tableCell}>{product.selling_price}</td>
                       <td style={styles.tableCell}>

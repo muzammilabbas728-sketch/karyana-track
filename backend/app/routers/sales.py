@@ -36,7 +36,8 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
         for item in sale.items:
             product_row = cursor.execute(
-                "SELECT id, name, selling_price, cost_price, quantity_in_stock, unit_type FROM products WHERE id = ? AND is_active = 1",
+                "SELECT id, name, selling_price, cost_price, quantity_in_stock, unit_type, units_per_pack "
+                "FROM products WHERE id = ? AND is_active = 1",
                 (item.product_id,),
             ).fetchone()
 
@@ -46,18 +47,30 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
                     detail=f"Product {item.product_id} not found",
                 )
 
-            if product_row["quantity_in_stock"] < item.quantity:
+            if product_row["unit_type"] == "pack":
+                units_per_pack = product_row["units_per_pack"]
+                if item.sell_as_pack:
+                    unit_price = float(product_row["selling_price"])
+                    unit_cost = float(product_row["cost_price"])
+                    stock_deducted = item.quantity * units_per_pack
+                else:
+                    unit_price = float(product_row["selling_price"]) / units_per_pack
+                    unit_cost = float(product_row["cost_price"]) / units_per_pack
+                    stock_deducted = item.quantity
+            elif product_row["unit_type"] == "weight":
+                unit_price = float(product_row["selling_price"]) / 1000
+                unit_cost = float(product_row["cost_price"]) / 1000
+                stock_deducted = item.quantity
+            else:
+                unit_price = float(product_row["selling_price"])
+                unit_cost = float(product_row["cost_price"])
+                stock_deducted = item.quantity
+
+            if product_row["quantity_in_stock"] < stock_deducted:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Insufficient stock for product {product_row['name']}",
                 )
-
-            if product_row["unit_type"] == "weight":
-                unit_price = float(product_row["selling_price"]) / 1000
-                unit_cost = float(product_row["cost_price"]) / 1000
-            else:
-                unit_price = float(product_row["selling_price"])
-                unit_cost = float(product_row["cost_price"])
 
             line_total = unit_price * item.quantity
             line_profit = (unit_price - unit_cost) * item.quantity
@@ -72,7 +85,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
             cursor.execute(
                 "UPDATE products SET quantity_in_stock = quantity_in_stock - ? WHERE id = ?",
-                (item.quantity, item.product_id),
+                (stock_deducted, item.product_id),
             )
 
             total_amount += line_total

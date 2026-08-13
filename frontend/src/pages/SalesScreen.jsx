@@ -13,6 +13,9 @@ export default function SalesScreen() {
   const [weightEntryProductId, setWeightEntryProductId] = useState(null);
   const [weightEntryAmount, setWeightEntryAmount] = useState("");
   const [weightEntryUnit, setWeightEntryUnit] = useState("g");
+  const [packEntryProductId, setPackEntryProductId] = useState(null);
+  const [packEntryMode, setPackEntryMode] = useState("pack");
+  const [packEntryAmount, setPackEntryAmount] = useState("1");
 
   useEffect(() => {
     async function loadProducts() {
@@ -54,6 +57,7 @@ export default function SalesScreen() {
           unit_price: product.selling_price,
           quantity: 1,
           unit_type: product.unit_type,
+          sell_as_pack: false,
         },
       ];
     });
@@ -77,25 +81,71 @@ export default function SalesScreen() {
           unit_price: product.selling_price / 1000,
           quantity: grams,
           unit_type: product.unit_type,
+          sell_as_pack: false,
         },
       ];
     });
   }
 
-  function handleUpdateQuantity(productId, delta) {
+  function handleAddPackToCart(product, quantity, sellAsPack) {
+    setCart((currentCart) => {
+      const existingIndex = currentCart.findIndex(
+        (item) =>
+          item.product_id === product.id &&
+          Boolean(item.sell_as_pack) === Boolean(sellAsPack)
+      );
+
+      if (existingIndex !== -1) {
+        return currentCart.map((item, index) =>
+          index === existingIndex
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+
+      const unit_price = sellAsPack
+        ? product.selling_price
+        : product.selling_price / product.units_per_pack;
+
+      return [
+        ...currentCart,
+        {
+          product_id: product.id,
+          name: product.name,
+          unit_price: unit_price,
+          quantity: quantity,
+          unit_type: product.unit_type,
+          sell_as_pack: sellAsPack,
+        },
+      ];
+    });
+  }
+
+  function handleUpdateQuantity(targetItem, delta) {
     setCart((currentCart) =>
       currentCart
-        .map((item) =>
-          item.product_id === productId
+        .map((item) => {
+          const isMatch =
+            item.product_id === targetItem.product_id &&
+            Boolean(item.sell_as_pack) === Boolean(targetItem.sell_as_pack);
+          return isMatch
             ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-            : item
-        )
+            : item;
+        })
         .filter((item) => item.quantity > 0)
     );
   }
 
-  function handleRemoveFromCart(productId) {
-    setCart((currentCart) => currentCart.filter((item) => item.product_id !== productId));
+  function handleRemoveFromCart(targetItem) {
+    setCart((currentCart) =>
+      currentCart.filter(
+        (item) =>
+          !(
+            item.product_id === targetItem.product_id &&
+            Boolean(item.sell_as_pack) === Boolean(targetItem.sell_as_pack)
+          )
+      )
+    );
   }
 
   const grandTotal = cart.reduce(
@@ -111,6 +161,7 @@ export default function SalesScreen() {
     const items = cart.map((item) => ({
       product_id: item.product_id,
       quantity: item.quantity,
+      sell_as_pack: item.sell_as_pack ?? false,
     }));
 
     try {
@@ -173,9 +224,100 @@ export default function SalesScreen() {
               >
                 <div>
                   <strong>{product.name}</strong>
-                  <div style={{ color: colors.muted }}>Rs. {product.selling_price}</div>
+                  <div style={{ color: colors.muted }}>
+                    Rs. {product.selling_price}
+                    {product.unit_type === "pack" && product.units_per_pack
+                      ? ` (${product.units_per_pack} units/pack)`
+                      : ""}
+                  </div>
                 </div>
-                {weightEntryProductId === product.id ? (
+
+                {packEntryProductId === product.id ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", fontSize: "0.85rem" }}>
+                      <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <input
+                          type="radio"
+                          name={`pack_mode_${product.id}`}
+                          value="pack"
+                          checked={packEntryMode === "pack"}
+                          onChange={() => setPackEntryMode("pack")}
+                        />
+                        Sell as pack
+                      </label>
+                      <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <input
+                          type="radio"
+                          name={`pack_mode_${product.id}`}
+                          value="loose"
+                          checked={packEntryMode === "loose"}
+                          onChange={() => setPackEntryMode("loose")}
+                        />
+                        Sell loose units
+                      </label>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <label style={{ fontSize: "0.8rem", color: colors.muted }}>
+                        {packEntryMode === "pack" ? "Number of packs" : "Number of units"}
+                      </label>
+                      <input
+                        type="number"
+                        value={packEntryAmount}
+                        onChange={(event) => setPackEntryAmount(event.target.value)}
+                        style={{
+                          width: "90px",
+                          ...styles.input,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const quantity = Number(packEntryAmount);
+                          if (Number.isNaN(quantity) || quantity <= 0) {
+                            setError("Enter a valid amount");
+                            return;
+                          }
+
+                          handleAddPackToCart(product, quantity, packEntryMode === "pack");
+                          setPackEntryProductId(null);
+                          setPackEntryMode("pack");
+                          setPackEntryAmount("1");
+                          setError(null);
+                        }}
+                        style={{
+                          ...styles.buttonPrimary,
+                          padding: "0.5rem 0.75rem",
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPackEntryProductId(null);
+                          setPackEntryMode("pack");
+                          setPackEntryAmount("1");
+                          setError(null);
+                        }}
+                        style={{
+                          ...styles.buttonSecondary,
+                          padding: "0.5rem 0.75rem",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : weightEntryProductId === product.id ? (
                   <div
                     style={{
                       display: "flex",
@@ -258,6 +400,14 @@ export default function SalesScreen() {
                         return;
                       }
 
+                      if (product.unit_type === "pack") {
+                        setPackEntryProductId(product.id);
+                        setPackEntryMode("pack");
+                        setPackEntryAmount("1");
+                        setError(null);
+                        return;
+                      }
+
                       setWeightEntryProductId(product.id);
                       setWeightEntryAmount("");
                       setWeightEntryUnit("g");
@@ -302,7 +452,7 @@ export default function SalesScreen() {
           <div style={{ display: "grid", gap: "0.75rem" }}>
             {cart.map((item) => (
               <div
-                key={item.product_id}
+                key={`${item.product_id}-${item.sell_as_pack ? "pack" : "loose"}`}
                 style={{
                   padding: "0.85rem",
                   border: `1px solid ${colors.border}`,
@@ -320,7 +470,7 @@ export default function SalesScreen() {
                   <strong>{item.name}</strong>
                   <button
                     type="button"
-                    onClick={() => handleRemoveFromCart(item.product_id)}
+                    onClick={() => handleRemoveFromCart(item)}
                     style={{
                       border: "none",
                       background: "transparent",
@@ -343,7 +493,7 @@ export default function SalesScreen() {
                   <div>
                     <button
                       type="button"
-                      onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? -50 : -1)}
+                      onClick={() => handleUpdateQuantity(item, item.unit_type === "weight" ? -50 : -1)}
                       style={{
                         ...styles.buttonSecondary,
                         padding: "0.35rem 0.6rem",
@@ -357,11 +507,15 @@ export default function SalesScreen() {
                         ? item.quantity >= 1000
                           ? `${(item.quantity / 1000).toFixed(2)} kg`
                           : `${item.quantity} g`
-                        : item.quantity}
+                        : item.unit_type === "pack"
+                          ? item.sell_as_pack
+                            ? `${item.quantity} pack(s)`
+                            : `${item.quantity} loose unit(s)`
+                          : item.quantity}
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleUpdateQuantity(item.product_id, item.unit_type === "weight" ? 50 : 1)}
+                      onClick={() => handleUpdateQuantity(item, item.unit_type === "weight" ? 50 : 1)}
                       style={{
                         ...styles.buttonSecondary,
                         padding: "0.35rem 0.6rem",
@@ -378,7 +532,7 @@ export default function SalesScreen() {
                       </span>
                     ) : (
                       <span>
-                        Rs. {item.unit_price} x {item.quantity} = Rs. {item.unit_price * item.quantity}
+                        Rs. {Number(item.unit_price.toFixed(2))} x {item.quantity} = Rs. {Number((item.unit_price * item.quantity).toFixed(2))}
                       </span>
                     )}
                   </div>
@@ -393,7 +547,7 @@ export default function SalesScreen() {
               }}
             >
               <strong>Grand Total:</strong>
-              <div>Rs. {grandTotal}</div>
+              <div>Rs. {Number(grandTotal.toFixed(2))}</div>
             </div>
 
             <button
