@@ -1,4 +1,4 @@
-const BASE_URL = "http://192.168.1.5:8000"; // TODO: use VITE_API_BASE_URL from env in the future
+const BASE_URL = "http://192.168.1.6:8000"; // TODO: use VITE_API_BASE_URL from env in the future
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
@@ -55,10 +55,14 @@ export function getProducts() {
   });
 }
 
-export function createSale(items) {
+export function createSale(items, customerId = null, paymentStatus = "paid") {
   return apiRequest("/sales", {
     method: "POST",
-    body: { items },
+    body: {
+      items,
+      customer_id: customerId,
+      payment_status: paymentStatus,
+    },
   });
 }
 
@@ -135,4 +139,31 @@ export function changeUserPin(userId, newPin) {
     body: { new_pin: newPin },
   });
 }
+
+export function getCustomers() {
+  return apiRequest("/customers", {
+    method: "GET",
+  });
+}
+
+export function createCustomer(customer) {
+  return apiRequest("/customers", {
+    method: "POST",
+    body: customer,
+  });
+}
+
+export function getCustomerHistory(customerId) {
+  return apiRequest(`/customers/${customerId}/history`, {
+    method: "GET",
+  });
+}
+
+export function recordCustomerPayment(customerId, amount) {
+  return apiRequest(`/customers/${customerId}/payments`, {
+    method: "POST",
+    body: { amount },
+  });
+}
+
 

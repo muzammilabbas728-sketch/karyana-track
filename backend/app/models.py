@@ -99,6 +99,10 @@ class SaleCreate(BaseModel):
     """Input payload for creating a new sale."""
 
     items: List[SaleItemRequest] = Field(..., min_length=1, description="Sale line items")
+    customer_id: Optional[int] = Field(default=None, description="Customer ID if this sale is on credit")
+    payment_status: Literal["paid", "credit"] = Field(
+        default="paid", description="Whether this sale was paid immediately or is on credit"
+    )
 
 
 class SaleItemResponse(BaseModel):
@@ -121,8 +125,10 @@ class SaleResponse(BaseModel):
 
     id: int = Field(..., description="Sale identifier")
     user_id: int = Field(..., description="User who created the sale")
+    customer_id: Optional[int] = Field(default=None, description="Customer identifier if sale is on credit")
     total_amount: float = Field(..., ge=0, description="Total sale amount")
     total_profit: float = Field(..., description="Total sale profit")
+    payment_status: str = Field(default="paid", description="Payment status")
     created_at: datetime = Field(..., description="Sale creation timestamp")
     items: List[SaleItemResponse] = Field(..., description="Sale line items")
 
@@ -167,4 +173,43 @@ class PinChangeRequest(BaseModel):
     """Schema used to update a user's PIN."""
 
     new_pin: str = Field(..., min_length=4, description="New PIN")
+
+
+class CustomerCreate(BaseModel):
+    """Schema used to create a new customer."""
+
+    name: str = Field(..., description="Customer full name")
+    phone: Optional[str] = Field(default=None, description="Customer phone number")
+    credit_limit: Optional[float] = Field(default=None, ge=0, description="Customer credit limit")
+
+
+class CustomerResponse(BaseModel):
+    """Response payload representing a customer with computed credit balance."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Customer identifier")
+    name: str = Field(..., description="Customer full name")
+    phone: Optional[str] = Field(default=None, description="Customer phone number")
+    credit_limit: Optional[float] = Field(default=None, description="Customer credit limit")
+    created_at: datetime = Field(..., description="Customer creation timestamp")
+    balance: float = Field(..., description="Computed customer credit balance")
+
+
+class CustomerPaymentCreate(BaseModel):
+    """Schema used to record a payment against a customer's balance."""
+
+    amount: float = Field(..., gt=0, description="Payment amount")
+
+
+class CustomerPaymentResponse(BaseModel):
+    """Response payload for a customer payment record."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Payment identifier")
+    amount: float = Field(..., description="Payment amount")
+    user_name: str = Field(..., description="Name of user who recorded the payment")
+    created_at: datetime = Field(..., description="Payment timestamp")
+
 

@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import auth, products, reports, sales, users
+from .routers import auth, customers, products, reports, sales, users
 
 app = FastAPI(title="Karyana Track")
 
@@ -11,7 +11,7 @@ app = FastAPI(title="Karyana Track")
 # production frontend URL before deployment.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://192.168.1.5:5173"],
+    allow_origins=["http://localhost:5173", "http://192.168.1.6:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,3 +22,4 @@ app.include_router(sales.router)
 app.include_router(auth.router)
 app.include_router(reports.router)
 app.include_router(users.router)
+app.include_router(customers.router)

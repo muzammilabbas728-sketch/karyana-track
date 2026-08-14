@@ -5,6 +5,7 @@ import SalesScreen from "./pages/SalesScreen";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import InventoryPage from "./pages/InventoryPage";
 import UsersPage from "./pages/UsersPage";
+import CustomersPage from "./pages/CustomersPage";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -181,6 +182,37 @@ export default function App() {
               >
                 Users
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("customers")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "customers") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "customers") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "customers" ? colors.primary : "transparent",
+                  color: activeView === "customers" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
+                }}
+              >
+                Customers
+              </button>
             </>
           ) : null}
         </div>
@@ -212,6 +244,8 @@ export default function App() {
           <InventoryPage />
         ) : activeView === "users" && isOwner ? (
           <UsersPage />
+        ) : activeView === "customers" && isOwner ? (
+          <CustomersPage />
         ) : (
           <SalesScreen />
         )}
@@ -219,4 +253,5 @@ export default function App() {
     </div>
   );
 }
+
 

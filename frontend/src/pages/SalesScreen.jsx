@@ -1,9 +1,15 @@
 import { useState, useEffect } from "react";
-import { getProducts, createSale } from "../api/client";
+import {
+  getProducts,
+  createSale,
+  getCustomers,
+  createCustomer,
+} from "../api/client";
 import { colors, fonts, styles } from "../theme";
 
 export default function SalesScreen() {
   const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -16,23 +22,31 @@ export default function SalesScreen() {
   const [packEntryProductId, setPackEntryProductId] = useState(null);
   const [packEntryMode, setPackEntryMode] = useState("pack");
   const [packEntryAmount, setPackEntryAmount] = useState("1");
+  const [paymentMode, setPaymentMode] = useState("paid");
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
 
   useEffect(() => {
-    async function loadProducts() {
+    async function loadData() {
       setLoading(true);
       setError(null);
 
       try {
-        const data = await getProducts();
-        setProducts(data);
+        const [productsData, customersData] = await Promise.all([
+          getProducts(),
+          getCustomers(),
+        ]);
+        setProducts(Array.isArray(productsData) ? productsData : []);
+        setCustomers(Array.isArray(customersData) ? customersData : []);
       } catch (err) {
-        setError(err.message || "Failed to load products");
+        setError(err.message || "Failed to load initial data");
       } finally {
         setLoading(false);
       }
     }
 
-    loadProducts();
+    loadData();
   }, []);
 
   const filteredProducts = products.filter((product) =>
@@ -148,6 +162,25 @@ export default function SalesScreen() {
     );
   }
 
+  async function handleQuickAddCustomer(event) {
+    event.preventDefault();
+    if (!newCustomerName.trim()) {
+      setError("Please enter a customer name");
+      return;
+    }
+
+    try {
+      const created = await createCustomer({ name: newCustomerName.trim() });
+      setCustomers((current) => [...current, created]);
+      setSelectedCustomerId(created.id);
+      setNewCustomerName("");
+      setShowNewCustomerForm(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message || "Failed to add customer");
+    }
+  }
+
   const grandTotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
@@ -164,19 +197,34 @@ export default function SalesScreen() {
       sell_as_pack: item.sell_as_pack ?? false,
     }));
 
+    const customerId = paymentMode === "credit" ? selectedCustomerId : null;
+
     try {
-      const response = await createSale(items);
+      const response = await createSale(items, customerId, paymentMode);
       setSuccessMessage(`Sale completed! Total: Rs. ${response.total_amount}`);
       setCart([]);
+      setPaymentMode("paid");
+      setSelectedCustomerId(null);
+      setShowNewCustomerForm(false);
+      setNewCustomerName("");
 
-      const refreshedProducts = await getProducts();
-      setProducts(refreshedProducts);
+      const [refreshedProducts, refreshedCustomers] = await Promise.all([
+        getProducts(),
+        getCustomers(),
+      ]);
+      setProducts(Array.isArray(refreshedProducts) ? refreshedProducts : []);
+      setCustomers(Array.isArray(refreshedCustomers) ? refreshedCustomers : []);
     } catch (err) {
       setError(err.message || "Failed to complete sale");
     } finally {
       setSubmitting(false);
     }
   }
+
+  const isCompleteDisabled =
+    cart.length === 0 ||
+    submitting ||
+    (paymentMode === "credit" && !selectedCustomerId);
 
   return (
     <div
@@ -550,14 +598,108 @@ export default function SalesScreen() {
               <div>Rs. {Number(grandTotal.toFixed(2))}</div>
             </div>
 
+            <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: colors.muted }}>
+                  Payment Mode:
+                </span>
+                <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.9rem" }}>
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="paid"
+                    checked={paymentMode === "paid"}
+                    onChange={() => {
+                      setPaymentMode("paid");
+                      setSelectedCustomerId(null);
+                      setShowNewCustomerForm(false);
+                    }}
+                  />
+                  Cash
+                </label>
+                <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.9rem" }}>
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="credit"
+                    checked={paymentMode === "credit"}
+                    onChange={() => setPaymentMode("credit")}
+                  />
+                  Credit
+                </label>
+              </div>
+
+              {paymentMode === "credit" ? (
+                <div style={{ display: "grid", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <select
+                      value={selectedCustomerId || ""}
+                      onChange={(event) =>
+                        setSelectedCustomerId(event.target.value ? Number(event.target.value) : null)
+                      }
+                      style={{
+                        ...styles.input,
+                        flex: 1,
+                      }}
+                    >
+                      <option value="">Select a customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name} (Balance: Rs. {customer.balance})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCustomerForm((current) => !current)}
+                      style={{
+                        ...styles.buttonSecondary,
+                        padding: "0.4rem 0.6rem",
+                        fontSize: "0.85rem",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {showNewCustomerForm ? "Cancel" : "+ New Customer"}
+                    </button>
+                  </div>
+
+                  {showNewCustomerForm ? (
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <input
+                        type="text"
+                        placeholder="Customer Name"
+                        value={newCustomerName}
+                        onChange={(event) => setNewCustomerName(event.target.value)}
+                        style={{
+                          ...styles.input,
+                          flex: 1,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleQuickAddCustomer}
+                        style={{
+                          ...styles.buttonPrimary,
+                          padding: "0.4rem 0.75rem",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
             <button
               type="button"
               onClick={handleCompleteSale}
-              disabled={cart.length === 0 || submitting}
+              disabled={isCompleteDisabled}
               style={{
                 ...styles.buttonPrimary,
                 width: "100%",
-                backgroundColor: cart.length === 0 || submitting ? colors.muted : colors.primary,
+                backgroundColor: isCompleteDisabled ? colors.muted : colors.primary,
               }}
             >
               {submitting ? "Completing sale..." : "Complete Sale"}

@@ -25,9 +25,27 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
     now = datetime.utcnow()
 
     with transaction() as cursor:
+        if sale.payment_status == "credit" and sale.customer_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="customer_id is required for credit sales",
+            )
+
+        if sale.customer_id is not None:
+            customer = cursor.execute(
+                "SELECT id FROM customers WHERE id = ?",
+                (sale.customer_id,),
+            ).fetchone()
+            if customer is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Customer not found",
+                )
+
         cursor.execute(
-            "INSERT INTO sales (user_id, total_amount, total_profit, created_at) VALUES (?, 0, 0, ?)",
-            (user_id, now),
+            "INSERT INTO sales (user_id, customer_id, total_amount, total_profit, payment_status, created_at) "
+            "VALUES (?, ?, 0, 0, ?, ?)",
+            (user_id, sale.customer_id, sale.payment_status, now),
         )
         sale_id = cursor.lastrowid
 
@@ -98,7 +116,8 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
     with transaction() as cursor:
         sale_row = cursor.execute(
-            "SELECT id, user_id, total_amount, total_profit, created_at FROM sales WHERE id = ?",
+            "SELECT id, user_id, customer_id, total_amount, total_profit, payment_status, created_at "
+            "FROM sales WHERE id = ?",
             (sale_id,),
         ).fetchone()
         item_rows = cursor.execute(
@@ -119,8 +138,10 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
     return SaleResponse(
         id=sale_row["id"],
         user_id=sale_row["user_id"],
+        customer_id=sale_row["customer_id"],
         total_amount=float(round(sale_row["total_amount"], 2)),
         total_profit=float(round(sale_row["total_profit"], 2)),
+        payment_status=sale_row["payment_status"],
         created_at=sale_row["created_at"],
         items=[
             SaleItemResponse(
