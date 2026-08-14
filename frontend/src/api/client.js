@@ -81,6 +81,14 @@ export function getRangeReport(fromDate, toDate) {
   );
 }
 
+export function getRangeReportByProduct(fromDate, toDate) {
+  return apiRequest(
+    `/reports/range/by-product?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`,
+    { method: "GET" }
+  );
+}
+
+
 export function getLowStock() {
   return apiRequest("/reports/low-stock", {
     method: "GET",
@@ -168,6 +176,17 @@ export function recordCustomerPayment(customerId, amount) {
 
 export function getSales() {
   return apiRequest("/sales", { method: "GET" });
+}
+
+export function getSaleDetails(saleId) {
+  return apiRequest(`/sales/${saleId}`, { method: "GET" });
+}
+
+export function updateSale(saleId, payload) {
+  return apiRequest(`/sales/${saleId}`, {
+    method: "PUT",
+    body: payload,
+  });
 }
 
 export function voidSale(saleId) {

@@ -8,8 +8,22 @@
   --color-warning: #B7791F;
   --color-danger: #B42318;
   --color-border: #E7E4DD;
+  --color-shadow: rgba(0, 0, 0, 0.08);
   --font-display: 'Fraunces', serif;
   --font-body: 'IBM Plex Sans', sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-bg: #121417;
+  --color-surface: #1E2228;
+  --color-ink: #F3F4F6;
+  --color-muted: #9CA3AF;
+  --color-primary: #38A169;
+  --color-primary-hover: #2F855A;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-border: #2D3748;
+  --color-shadow: rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -22,4 +36,16 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+input, select, textarea {
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+select option {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
 }

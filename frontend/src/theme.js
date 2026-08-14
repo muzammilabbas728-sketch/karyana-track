@@ -1,13 +1,14 @@
 export const colors = {
-  bg: '#FAFAF8',
-  surface: '#FFFFFF',
-  ink: '#1C1917',
-  muted: '#6B6459',
-  primary: '#2F6844',
-  primaryHover: '#24512F',
-  warning: '#B7791F',
-  danger: '#B42318',
-  border: '#E7E4DD',
+  bg: 'var(--color-bg)',
+  surface: 'var(--color-surface)',
+  ink: 'var(--color-ink)',
+  muted: 'var(--color-muted)',
+  primary: 'var(--color-primary)',
+  primaryHover: 'var(--color-primary-hover)',
+  warning: 'var(--color-warning)',
+  danger: 'var(--color-danger)',
+  border: 'var(--color-border)',
+  shadow: 'var(--color-shadow)',
 };
 
 export const fonts = {
@@ -26,6 +27,7 @@ export const styles = {
     borderRadius: '12px',
     padding: '1.5rem',
     border: `1px solid ${colors.border}`,
+    boxShadow: `0 10px 30px ${colors.shadow}`,
   },
   cardAccent: (accentColor) => ({
     background: colors.surface,
@@ -33,6 +35,7 @@ export const styles = {
     padding: '1.5rem',
     border: `1px solid ${colors.border}`,
     borderLeft: `4px solid ${accentColor}`,
+    boxShadow: `0 10px 30px ${colors.shadow}`,
   }),
   pageTitle: {
     fontFamily: fonts.display,
@@ -89,6 +92,7 @@ export const styles = {
     padding: '0.85rem 0.6rem',
     verticalAlign: 'top',
     fontFamily: fonts.body,
+    color: colors.ink,
   },
   tableHeaderCell: {
     padding: '0.85rem 0.6rem',

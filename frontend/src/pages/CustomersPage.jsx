@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import html2pdf from "html2pdf.js";
 import {
   getCustomers,
   createCustomer,
@@ -13,6 +14,20 @@ const initialNewCustomer = {
   credit_limit: "",
 };
 
+function formatDateTime(dateStr) {
+  if (!dateStr) return "—";
+  let str = String(dateStr).trim();
+  if (!str) return "—";
+  if (str.includes(" ") && !str.includes("T")) {
+    str = str.replace(" ", "T");
+  }
+  if (!str.endsWith("Z") && !str.includes("+") && !str.slice(10).includes("-")) {
+    str += "Z";
+  }
+  const date = new Date(str);
+  return Number.isNaN(date.getTime()) ? String(dateStr) : date.toLocaleString();
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +39,8 @@ export default function CustomersPage() {
   const [historyItems, setHistoryItems] = useState([]);
   const [paymentCustomerId, setPaymentCustomerId] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     async function loadCustomers() {
@@ -129,6 +146,144 @@ export default function CustomersPage() {
 
   const selectedPaymentCustomer = customers.find((c) => c.id === paymentCustomerId);
   const selectedHistoryCustomer = customers.find((c) => c.id === historyCustomerId);
+
+  async function handleDownloadCreditHistory() {
+    if (!selectedHistoryCustomer) return;
+    setDownloading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const totalCredit = historyItems
+        .filter((i) => i.type === "sale")
+        .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
+      const totalPaid = historyItems
+        .filter((i) => i.type === "payment")
+        .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
+      const remainingBalance = Number(selectedHistoryCustomer.balance || 0);
+      const reportDate = new Date().toLocaleString();
+
+      const container = document.createElement("div");
+      container.style.padding = "24px";
+      container.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      container.style.color = "#1C1917";
+      container.style.backgroundColor = "#FFFFFF";
+
+      const rowsHtml = historyItems
+        .map((item) => {
+          const isSale = item.type === "sale";
+          const typeLabel = isSale ? "Credit Sale" : "Payment";
+          const typeColor = isSale ? "#B42318" : "#2F6844";
+          let itemsListHtml = "";
+
+          if (isSale && item.items && item.items.length > 0) {
+            const listItems = item.items
+              .map(
+                (p) =>
+                  `<li style="margin-bottom: 2px;">${p.product_name} — ${p.quantity} x Rs. ${p.unit_price} = <strong>Rs. ${p.line_total}</strong></li>`
+              )
+              .join("");
+            itemsListHtml = `<ul style="margin: 4px 0 0 16px; padding: 0; font-size: 11px; color: #555; list-style-type: disc;">${listItems}</ul>`;
+          }
+
+          return `
+            <tr style="border-bottom: 1px solid #E7E4DD;">
+              <td style="padding: 8px; vertical-align: top;">
+                <strong style="color: ${typeColor};">${typeLabel}</strong>
+              </td>
+              <td style="padding: 8px; vertical-align: top; font-weight: 600; color: ${typeColor};">
+                Rs. ${item.amount}
+                ${itemsListHtml}
+              </td>
+              <td style="padding: 8px; vertical-align: top; color: #333; font-size: 12px;">
+                ${formatDateTime(item.created_at)}
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      container.innerHTML = `
+        <div style="max-width: 750px; margin: 0 auto; background: #ffffff; border: 1px solid #E7E4DD; border-radius: 12px; padding: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2F6844; padding-bottom: 12px; margin-bottom: 20px;">
+            <div>
+              <h1 style="font-size: 22px; font-weight: 700; color: #2F6844; margin: 0;">Karyana Track</h1>
+              <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #6B6459; margin-top: 4px;">Customer Credit Statement</div>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #6B6459;">
+              <div><strong>Statement Date:</strong> ${reportDate}</div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; background: #FAFAF8; padding: 12px 16px; border-radius: 8px; border: 1px solid #E7E4DD; font-size: 13px;">
+            <div>
+              <div><strong>Customer Name:</strong> ${selectedHistoryCustomer.name}</div>
+              <div style="margin-top: 4px;"><strong>Customer ID:</strong> #${selectedHistoryCustomer.id}</div>
+            </div>
+            <div>
+              <div><strong>Phone:</strong> ${selectedHistoryCustomer.phone || "—"}</div>
+              <div style="margin-top: 4px;"><strong>Credit Limit:</strong> ${
+                selectedHistoryCustomer.credit_limit !== null && selectedHistoryCustomer.credit_limit !== undefined
+                  ? `Rs. ${selectedHistoryCustomer.credit_limit}`
+                  : "No limit"
+              }</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+            <div style="padding: 12px; border-radius: 8px; border: 1px solid #E7E4DD; background: #FAFAF8; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Total Credit</div>
+              <div style="font-size: 18px; font-weight: 700; color: #B42318;">Rs. ${totalCredit.toFixed(2)}</div>
+            </div>
+            <div style="padding: 12px; border-radius: 8px; border: 1px solid #E7E4DD; background: #FAFAF8; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Total Paid</div>
+              <div style="font-size: 18px; font-weight: 700; color: #2F6844;">Rs. ${totalPaid.toFixed(2)}</div>
+            </div>
+            <div style="padding: 12px; border-radius: 8px; border: 1px solid #F87171; background: #FDF2F2; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Remaining Balance</div>
+              <div style="font-size: 18px; font-weight: 700; color: #B42318;">Rs. ${remainingBalance.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #E7E4DD; text-align: left; font-size: 11px; text-transform: uppercase; color: #6B6459;">
+                <th style="padding: 8px; width: 25%;">Transaction Type</th>
+                <th style="padding: 8px; width: 50%;">Amount & Details</th>
+                <th style="padding: 8px; width: 25%;">Date & Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #666;">No transaction history.</td></tr>'}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 32px; padding-top: 12px; border-top: 1px solid #E7E4DD; display: flex; justify-content: space-between; font-size: 11px; color: #6B6459;">
+            <div>Thank you for your business!</div>
+            <div>Authorized Signature: _______________________</div>
+          </div>
+        </div>
+      `;
+
+      const safeName = selectedHistoryCustomer.name.replace(/[^a-zA-Z0-9]/g, "_");
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Credit_Statement_${safeName}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
+
+      await html2pdf().set(opt).from(container).save();
+      setSuccessMessage(`Credit statement PDF downloaded: Credit_Statement_${safeName}.pdf`);
+    } catch (err) {
+      setError(err.message || "Failed to download PDF report");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <section
@@ -356,9 +511,19 @@ export default function CustomersPage() {
             <h3 style={{ ...styles.pageTitle, fontSize: "1.1rem", margin: 0 }}>
               Customer History {selectedHistoryCustomer ? `for ${selectedHistoryCustomer.name}` : ""}
             </h3>
-            <button type="button" onClick={closeHistory} style={styles.buttonSecondary}>
-              Close
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={handleDownloadCreditHistory}
+                disabled={downloading}
+                style={styles.buttonPrimary}
+              >
+                {downloading ? "Generating PDF..." : "Download Credit History"}
+              </button>
+              <button type="button" onClick={closeHistory} style={styles.buttonSecondary}>
+                Close
+              </button>
+            </div>
           </div>
           {historyItems.length === 0 ? (
             <p style={{ fontFamily: fonts.body, color: colors.muted }}>No history available.</p>
@@ -397,7 +562,7 @@ export default function CustomersPage() {
                         ) : null}
                       </td>
                       <td style={styles.tableCell}>
-                        {item.created_at ? new Date(item.created_at).toLocaleString() : "—"}
+                        {formatDateTime(item.created_at)}
                       </td>
                     </tr>
                   ))}

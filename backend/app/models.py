@@ -105,6 +105,28 @@ class SaleCreate(BaseModel):
     )
 
 
+class SaleItemUpdate(BaseModel):
+    """Input payload for updating a sale line item."""
+
+    product_id: int = Field(..., description="Identifier of the product")
+    quantity: int = Field(..., gt=0, description="Quantity")
+    unit_price: Optional[float] = Field(default=None, ge=0, description="Custom unit price override if specified")
+    sell_as_pack: bool = Field(
+        default=False,
+        description="For pack-type products, whether this line item sells one full pack (true) or individual loose units (false)",
+    )
+
+
+class SaleUpdate(BaseModel):
+    """Input payload for updating an existing sale."""
+
+    items: List[SaleItemUpdate] = Field(..., min_length=1, description="Updated sale line items")
+    customer_id: Optional[int] = Field(default=None, description="Customer ID if sale is on credit")
+    payment_status: Literal["paid", "credit"] = Field(
+        default="paid", description="Whether this sale is paid immediately or on credit"
+    )
+
+
 class SaleItemResponse(BaseModel):
     """Response payload for a single sale line item."""
 
@@ -114,7 +136,7 @@ class SaleItemResponse(BaseModel):
     product_name: str = Field(..., description="Product name")
     quantity: int = Field(..., gt=0, description="Quantity sold")
     unit_price: float = Field(..., ge=0, description="Selling price snapshot")
-    unit_cost: float = Field(..., ge=0, description="Cost price snapshot")
+    unit_cost: Optional[float] = Field(default=None, description="Cost price snapshot")
     line_total: float = Field(..., ge=0, description="Line item total")
 
 
@@ -127,7 +149,7 @@ class SaleResponse(BaseModel):
     user_id: int = Field(..., description="User who created the sale")
     customer_id: Optional[int] = Field(default=None, description="Customer identifier if sale is on credit")
     total_amount: float = Field(..., ge=0, description="Total sale amount")
-    total_profit: float = Field(..., description="Total sale profit")
+    total_profit: Optional[float] = Field(default=None, description="Total sale profit")
     payment_status: str = Field(default="paid", description="Payment status")
     created_at: datetime = Field(..., description="Sale creation timestamp")
     items: List[SaleItemResponse] = Field(..., description="Sale line items")

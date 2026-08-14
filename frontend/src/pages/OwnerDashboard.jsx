@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getDailyReport, getRangeReport, getLowStock } from "../api/client";
+import { getDailyReport, getRangeReport, getRangeReportByProduct, getLowStock } from "../api/client";
 import { colors, fonts, styles } from "../theme";
 
 function formatDate(date) {
@@ -14,6 +14,7 @@ export default function OwnerDashboard() {
   );
   const [toDate, setToDate] = useState(formatDate(new Date()));
   const [rangeReport, setRangeReport] = useState(null);
+  const [productBreakdown, setProductBreakdown] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -40,8 +41,12 @@ export default function OwnerDashboard() {
     setError(null);
 
     try {
-      const report = await getRangeReport(fromDate, toDate);
+      const [report, breakdown] = await Promise.all([
+        getRangeReport(fromDate, toDate),
+        getRangeReportByProduct(fromDate, toDate),
+      ]);
       setRangeReport(report);
+      setProductBreakdown(Array.isArray(breakdown) ? breakdown : []);
     } catch (err) {
       setError(err.message || "Failed to load range report");
     }
@@ -180,6 +185,31 @@ export default function OwnerDashboard() {
         ) : (
           <p>Run the report to see range statistics.</p>
         )}
+
+        {productBreakdown.length > 0 ? (
+          <div style={{ marginTop: "1rem", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
+                  <th style={styles.tableHeaderCell}>Product</th>
+                  <th style={styles.tableHeaderCell}>Qty Sold</th>
+                  <th style={styles.tableHeaderCell}>Revenue</th>
+                  <th style={styles.tableHeaderCell}>Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productBreakdown.map((item, index) => (
+                  <tr key={`${item.product_name}-${index}`} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                    <td style={styles.tableCell}>{item.product_name}</td>
+                    <td style={styles.tableCell}>{item.total_quantity}</td>
+                    <td style={styles.tableCell}>Rs. {item.total_revenue}</td>
+                    <td style={styles.tableCell}>Rs. {item.total_profit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
 
       <section

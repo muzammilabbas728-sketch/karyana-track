@@ -63,6 +63,42 @@ def range_report(
     }
 
 
+@router.get("/range/by-product")
+def range_report_by_product(
+    from_date: str = Query(...),
+    to_date: str = Query(...),
+    current_user: dict = Depends(require_role("owner")),
+) -> List[Dict[str, Any]]:
+    """Return per-product sales breakdown for a date range (owner only)."""
+    with transaction() as cursor:
+        rows = cursor.execute(
+            """
+            SELECT p.name AS product_name,
+                   SUM(si.quantity) AS total_quantity,
+                   SUM(si.quantity * si.unit_price) AS total_revenue,
+                   SUM(si.quantity * (si.unit_price - si.unit_cost)) AS total_profit
+            FROM sale_items si
+            JOIN sales s ON s.id = si.sale_id
+            JOIN products p ON p.id = si.product_id
+            WHERE date(s.created_at) BETWEEN ? AND ? AND s.voided = 0
+            GROUP BY si.product_id
+            ORDER BY total_revenue DESC
+            """,
+            (from_date, to_date),
+        ).fetchall()
+
+    return [
+        {
+            "product_name": row["product_name"],
+            "total_quantity": row["total_quantity"],
+            "total_revenue": round(float(row["total_revenue"]), 2),
+            "total_profit": round(float(row["total_profit"]), 2),
+        }
+        for row in rows
+    ]
+
+
+
 @router.get("/low-stock")
 def low_stock_report(current_user: dict = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Return all active products that are at or below their low-stock threshold."""

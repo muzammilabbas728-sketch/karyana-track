@@ -1,15 +1,190 @@
-"""Sales routes for creating sales transactions."""
-
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from .auth import get_current_user, require_role
 from ..database import transaction
-from ..models import SaleCreate, SaleItemResponse, SaleResponse
+from ..models import SaleCreate, SaleItemResponse, SaleResponse, SaleUpdate
 
 router = APIRouter(prefix="/sales", tags=["sales"])
+
+
+@router.get("/{sale_id}", response_model=SaleResponse)
+def get_sale(sale_id: int, current_user: dict = Depends(get_current_user)) -> SaleResponse:
+    """Retrieve details of a single sale including line items."""
+    with transaction() as cursor:
+        sale_row = cursor.execute(
+            "SELECT id, user_id, customer_id, total_amount, total_profit, payment_status, created_at "
+            "FROM sales WHERE id = ?",
+            (sale_id,),
+        ).fetchone()
+
+        if sale_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found")
+
+        item_rows = cursor.execute(
+            """
+            SELECT si.product_id, p.name AS product_name, si.quantity, si.unit_price, si.unit_cost,
+                   si.quantity * si.unit_price AS line_total
+            FROM sale_items si
+            JOIN products p ON p.id = si.product_id
+            WHERE si.sale_id = ?
+            ORDER BY si.id
+            """,
+            (sale_id,),
+        ).fetchall()
+
+    is_owner = current_user.get("role") == "owner"
+    return SaleResponse(
+        id=sale_row["id"],
+        user_id=sale_row["user_id"],
+        customer_id=sale_row["customer_id"],
+        total_amount=float(round(sale_row["total_amount"], 2)),
+        total_profit=float(round(sale_row["total_profit"], 2)) if is_owner else None,
+        payment_status=sale_row["payment_status"],
+        created_at=sale_row["created_at"],
+        items=[
+            SaleItemResponse(
+                product_id=row["product_id"],
+                product_name=row["product_name"],
+                quantity=row["quantity"],
+                unit_price=float(row["unit_price"]),
+                unit_cost=float(row["unit_cost"]) if is_owner else None,
+                line_total=float(row["line_total"]),
+            )
+            for row in item_rows
+        ],
+    )
+
+
+@router.put("/{sale_id}", response_model=SaleResponse)
+def update_sale(
+    sale_id: int,
+    payload: SaleUpdate,
+    current_user: dict = Depends(get_current_user),
+) -> SaleResponse:
+    """Update an existing sale (owner only).
+
+    Restores original stock deductions, replaces sale items with updated items,
+    re-deducts inventory, and updates transaction totals.
+    """
+    with transaction() as cursor:
+        sale_row = cursor.execute(
+            "SELECT id, voided FROM sales WHERE id = ?",
+            (sale_id,),
+        ).fetchone()
+
+        if sale_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found")
+        if sale_row["voided"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot edit a voided sale",
+            )
+
+        if payload.payment_status == "credit" and payload.customer_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="customer_id is required for credit sales",
+            )
+
+        if payload.customer_id is not None:
+            customer = cursor.execute(
+                "SELECT id FROM customers WHERE id = ?",
+                (payload.customer_id,),
+            ).fetchone()
+            if customer is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Customer not found",
+                )
+
+        # 1. Restore stock from old sale items
+        old_items = cursor.execute(
+            "SELECT product_id, stock_deducted FROM sale_items WHERE sale_id = ?",
+            (sale_id,),
+        ).fetchall()
+
+        for old_item in old_items:
+            cursor.execute(
+                "UPDATE products SET quantity_in_stock = quantity_in_stock + ? WHERE id = ?",
+                (old_item["stock_deducted"], old_item["product_id"]),
+            )
+
+        # 2. Delete old sale items
+        cursor.execute("DELETE FROM sale_items WHERE sale_id = ?", (sale_id,))
+
+        # 3. Insert updated sale items & recalculate
+        total_amount = 0.0
+        total_profit = 0.0
+
+        for item in payload.items:
+            product_row = cursor.execute(
+                "SELECT id, name, selling_price, cost_price, quantity_in_stock, unit_type, units_per_pack "
+                "FROM products WHERE id = ? AND is_active = 1",
+                (item.product_id,),
+            ).fetchone()
+
+            if product_row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Product {item.product_id} not found",
+                )
+
+            if product_row["unit_type"] == "pack":
+                units_per_pack = product_row["units_per_pack"]
+                if item.sell_as_pack:
+                    default_price = float(product_row["selling_price"])
+                    default_cost = float(product_row["cost_price"])
+                    stock_deducted = item.quantity * units_per_pack
+                else:
+                    default_price = float(product_row["selling_price"]) / units_per_pack
+                    default_cost = float(product_row["cost_price"]) / units_per_pack
+                    stock_deducted = item.quantity
+            elif product_row["unit_type"] == "weight":
+                default_price = float(product_row["selling_price"]) / 1000
+                default_cost = float(product_row["cost_price"]) / 1000
+                stock_deducted = item.quantity
+            else:
+                default_price = float(product_row["selling_price"])
+                default_cost = float(product_row["cost_price"])
+                stock_deducted = item.quantity
+
+            unit_price = item.unit_price if item.unit_price is not None else default_price
+            unit_cost = default_cost
+
+            if product_row["quantity_in_stock"] < stock_deducted:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Insufficient stock for product {product_row['name']}",
+                )
+
+            line_total = unit_price * item.quantity
+            line_profit = (unit_price - unit_cost) * item.quantity
+
+            cursor.execute(
+                """
+                INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, unit_cost, stock_deducted)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (sale_id, item.product_id, item.quantity, unit_price, unit_cost, stock_deducted),
+            )
+
+            cursor.execute(
+                "UPDATE products SET quantity_in_stock = quantity_in_stock - ? WHERE id = ?",
+                (stock_deducted, item.product_id),
+            )
+
+            total_amount += line_total
+            total_profit += line_profit
+
+        cursor.execute(
+            "UPDATE sales SET total_amount = ?, total_profit = ?, customer_id = ?, payment_status = ? WHERE id = ?",
+            (round(total_amount, 2), round(total_profit, 2), payload.customer_id, payload.payment_status, sale_id),
+        )
+
+    return get_sale(sale_id, current_user)
 
 
 @router.post("", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
@@ -22,7 +197,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
     """
     # TODO: replace hardcoded user_id with the authenticated user's id once auth exists.
     user_id = 1
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     with transaction() as cursor:
         if sale.payment_status == "credit" and sale.customer_id is None:
@@ -135,12 +310,13 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
     if sale_row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found")
 
+    is_owner = current_user.get("role") == "owner"
     return SaleResponse(
         id=sale_row["id"],
         user_id=sale_row["user_id"],
         customer_id=sale_row["customer_id"],
         total_amount=float(round(sale_row["total_amount"], 2)),
-        total_profit=float(round(sale_row["total_profit"], 2)),
+        total_profit=float(round(sale_row["total_profit"], 2)) if is_owner else None,
         payment_status=sale_row["payment_status"],
         created_at=sale_row["created_at"],
         items=[
@@ -149,7 +325,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
                 product_name=row["product_name"],
                 quantity=row["quantity"],
                 unit_price=float(row["unit_price"]),
-                unit_cost=float(row["unit_cost"]),
+                unit_cost=float(row["unit_cost"]) if is_owner else None,
                 line_total=float(row["line_total"]),
             )
             for row in item_rows
@@ -158,7 +334,7 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
 
 @router.post("/{sale_id}/void")
-def void_sale(sale_id: int, current_user: dict = Depends(require_role("owner"))) -> dict:
+def void_sale(sale_id: int, current_user: dict = Depends(get_current_user)) -> dict:
     """Void a sale: restores stock for all items and excludes it from revenue/profit totals. Owner only."""
     with transaction() as cursor:
         sale = cursor.execute("SELECT id, voided FROM sales WHERE id = ?", (sale_id,)).fetchone()
@@ -179,18 +355,35 @@ def void_sale(sale_id: int, current_user: dict = Depends(require_role("owner")))
 
         cursor.execute(
             "UPDATE sales SET voided = 1, voided_at = ? WHERE id = ?",
-            (datetime.utcnow(), sale_id),
+            (datetime.now(timezone.utc), sale_id),
         )
 
     return {"detail": "Sale voided successfully"}
 
 
 @router.get("")
-def list_sales(current_user: dict = Depends(require_role("owner"))) -> list:
-    """List recent sales (most recent first, last 50), owner only."""
+def list_sales(current_user: dict = Depends(get_current_user)) -> list:
+    """List recent sales (most recent first, last 50)."""
+    is_owner = current_user.get("role") == "owner"
     with transaction() as cursor:
-        rows = cursor.execute(
-            "SELECT id, total_amount, total_profit, payment_status, voided, created_at "
-            "FROM sales ORDER BY created_at DESC LIMIT 50"
-        ).fetchall()
-    return [dict(row) for row in rows]
+        if is_owner:
+            rows = cursor.execute(
+                "SELECT id, total_amount, total_profit, payment_status, voided, created_at "
+                "FROM sales ORDER BY created_at DESC LIMIT 50"
+            ).fetchall()
+            return [dict(row) for row in rows]
+        else:
+            rows = cursor.execute(
+                "SELECT id, total_amount, payment_status, voided, created_at "
+                "FROM sales ORDER BY created_at DESC LIMIT 50"
+            ).fetchall()
+            return [
+                {
+                    "id": row["id"],
+                    "total_amount": float(round(row["total_amount"], 2)),
+                    "payment_status": row["payment_status"],
+                    "voided": row["voided"],
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]

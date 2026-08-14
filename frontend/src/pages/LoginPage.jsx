@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { login } from "../api/client";
 import { colors, fonts, styles } from "../theme";
 
@@ -7,6 +7,18 @@ export default function LoginPage({ onLoginSuccess }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("app_theme") || "light"
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("app_theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -46,9 +58,29 @@ export default function LoginPage({ onLoginSuccess }) {
           boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
         }}
       >
-        <h2 style={{ ...styles.pageTitle, fontSize: "1.6rem", marginBottom: "1rem" }}>
-          Log In
-        </h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h2 style={{ ...styles.pageTitle, fontSize: "1.6rem", margin: 0 }}>
+            Log In
+          </h2>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            style={{
+              ...styles.buttonSecondary,
+              padding: "0.4rem 0.75rem",
+              fontSize: "0.85rem",
+            }}
+          >
+            {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+          </button>
+        </div>
 
         <label style={{ display: "block", marginBottom: "0.75rem", ...styles.label }}>
           Username

@@ -16,6 +16,19 @@ from .auth import get_current_user, require_role
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 
+def _format_iso_utc(ts: Any) -> Any:
+    if not ts:
+        return ts
+    s = str(ts).strip()
+    if not s:
+        return ts
+    if " " in s and "T" not in s:
+        s = s.replace(" ", "T")
+    if not s.endswith("Z") and "+" not in s and "-" not in s[10:]:
+        s += "Z"
+    return s
+
+
 def _compute_balance(cursor: Any, customer_id: int) -> float:
     """Compute the net credit balance for a customer (credit sales minus payments)."""
     credit_sales_row = cursor.execute(
@@ -134,7 +147,7 @@ def get_customer_history(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
 
         sales_rows = cursor.execute(
-            "SELECT id, total_amount, created_at FROM sales WHERE customer_id = ? AND payment_status = 'credit'",
+            "SELECT id, total_amount, created_at FROM sales WHERE customer_id = ? AND payment_status = 'credit' AND voided = 0",
             (customer_id,),
         ).fetchall()
 
@@ -163,7 +176,7 @@ def get_customer_history(
                 "id": s_row["id"],
                 "type": "sale",
                 "amount": float(s_row["total_amount"]),
-                "created_at": s_row["created_at"],
+                "created_at": _format_iso_utc(s_row["created_at"]),
                 "items": items,
             })
 
@@ -182,7 +195,7 @@ def get_customer_history(
             "id": row["id"],
             "type": "payment",
             "amount": float(row["amount"]),
-            "created_at": row["created_at"],
+            "created_at": _format_iso_utc(row["created_at"]),
             "items": [],
         })
 

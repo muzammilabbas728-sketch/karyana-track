@@ -221,7 +221,17 @@ export default function InventoryPage() {
     event.preventDefault();
     clearMessages();
 
-    const changeAmount = Number(adjustAmount);
+    const product = products.find((p) => p.id === adjustModalProductId);
+    let changeAmount = Number(adjustAmount);
+    if (adjustReason === "damaged" || adjustReason === "expired") {
+      changeAmount = -Math.abs(changeAmount);
+    } else if (adjustReason === "restock") {
+      changeAmount = Math.abs(changeAmount);
+    }
+    if (product && product.unit_type === "weight") {
+      changeAmount = changeAmount * 1000;
+    }
+
     if (Number.isNaN(changeAmount)) {
       setError("Please enter a valid stock adjustment.");
       return;
@@ -628,7 +638,16 @@ export default function InventoryPage() {
           <h3 style={{ ...styles.pageTitle, marginTop: 0 }}>Adjust Stock</h3>
           <form onSubmit={handleAdjustSubmit} style={{ display: "grid", gap: "0.75rem" }}>
             <label style={styles.label}>
-              Amount
+              {products.find((p) => p.id === adjustModalProductId)?.unit_type === "weight"
+                ? "Amount (kg)"
+                : "Amount"}
+              <span style={{ display: "block", fontSize: "0.8rem", fontWeight: "normal" }}>
+                {adjustReason === "restock"
+                  ? "(will be added)"
+                  : adjustReason === "damaged" || adjustReason === "expired"
+                    ? "(will be subtracted)"
+                    : "(use + or -)"}
+              </span>
               <input
                 type="number"
                 value={adjustAmount}

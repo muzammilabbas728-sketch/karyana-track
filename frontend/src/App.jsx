@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { colors, fonts, styles } from "./theme";
 import LoginPage from "./pages/LoginPage";
 import SalesScreen from "./pages/SalesScreen";
@@ -13,6 +13,18 @@ export default function App() {
     Boolean(localStorage.getItem("auth_token"))
   );
   const [activeView, setActiveView] = useState("sales");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("app_theme") || "light"
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("app_theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
 
   function handleLoginSuccess() {
     setLoggedIn(Boolean(localStorage.getItem("auth_token")));
@@ -89,6 +101,37 @@ export default function App() {
             Sales
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveView("sales-history")}
+            onMouseEnter={(event) => {
+              if (activeView !== "sales-history") {
+                event.currentTarget.style.backgroundColor = colors.bg;
+              }
+            }}
+            onMouseLeave={(event) => {
+              if (activeView !== "sales-history") {
+                event.currentTarget.style.backgroundColor = "transparent";
+              }
+            }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "0.75rem 1rem",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              marginBottom: "0.5rem",
+              backgroundColor:
+                activeView === "sales-history" ? colors.primary : "transparent",
+              color: activeView === "sales-history" ? "#fff" : colors.ink,
+              fontFamily: fonts.body,
+              fontWeight: 600,
+            }}
+          >
+            Sales History
+          </button>
+
           {isOwner ? (
             <>
               <button
@@ -151,37 +194,6 @@ export default function App() {
                 }}
               >
                 Inventory
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveView("sales-history")}
-                onMouseEnter={(event) => {
-                  if (activeView !== "sales-history") {
-                    event.currentTarget.style.backgroundColor = colors.bg;
-                  }
-                }}
-                onMouseLeave={(event) => {
-                  if (activeView !== "sales-history") {
-                    event.currentTarget.style.backgroundColor = "transparent";
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  marginBottom: "0.5rem",
-                  backgroundColor:
-                    activeView === "sales-history" ? colors.primary : "transparent",
-                  color: activeView === "sales-history" ? "#fff" : colors.ink,
-                  fontFamily: fonts.body,
-                  fontWeight: 600,
-                }}
-              >
-                Sales History
               </button>
 
               <button
@@ -251,11 +263,27 @@ export default function App() {
 
         <button
           type="button"
+          onClick={toggleTheme}
+          style={{
+            ...styles.buttonSecondary,
+            width: "100%",
+            marginTop: "auto",
+            marginBottom: "0.5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+          }}
+        >
+          {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+        </button>
+
+        <button
+          type="button"
           onClick={handleLogout}
           style={{
             ...styles.buttonDanger,
             width: "100%",
-            marginTop: "auto",
           }}
         >
           Log Out
@@ -270,12 +298,12 @@ export default function App() {
           background: colors.bg,
         }}
       >
-        {activeView === "dashboard" && isOwner ? (
+        {activeView === "sales-history" ? (
+          <SalesHistoryPage />
+        ) : activeView === "dashboard" && isOwner ? (
           <OwnerDashboard />
         ) : activeView === "inventory" && isOwner ? (
           <InventoryPage />
-        ) : activeView === "sales-history" && isOwner ? (
-          <SalesHistoryPage />
         ) : activeView === "users" && isOwner ? (
           <UsersPage />
         ) : activeView === "customers" && isOwner ? (
