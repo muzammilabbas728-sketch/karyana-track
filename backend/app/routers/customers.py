@@ -19,7 +19,7 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 def _compute_balance(cursor: Any, customer_id: int) -> float:
     """Compute the net credit balance for a customer (credit sales minus payments)."""
     credit_sales_row = cursor.execute(
-        "SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE customer_id = ? AND payment_status = 'credit'",
+        "SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE customer_id = ? AND payment_status = 'credit' AND voided = 0",
         (customer_id,),
     ).fetchone()
     total_sales = float(credit_sales_row[0]) if credit_sales_row else 0.0

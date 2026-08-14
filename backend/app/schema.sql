@@ -29,6 +29,8 @@ CREATE TABLE sales (
     total_amount   REAL NOT NULL,
     total_profit   REAL NOT NULL,
     payment_status TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('paid', 'credit')),
+    voided         BOOLEAN NOT NULL DEFAULT 0,
+    voided_at      TIMESTAMP,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (customer_id) REFERENCES customers(id)
@@ -41,6 +43,7 @@ CREATE TABLE sale_items (
     quantity       INTEGER NOT NULL CHECK (quantity > 0),
     unit_price     REAL NOT NULL,
     unit_cost      REAL NOT NULL,
+    stock_deducted INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (sale_id) REFERENCES sales(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
 );

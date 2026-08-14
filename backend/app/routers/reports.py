@@ -22,7 +22,7 @@ def daily_report(current_user: dict = Depends(require_role("owner"))) -> Dict[st
                 COALESCE(SUM(total_amount), 0) AS total_revenue,
                 COALESCE(SUM(total_profit), 0) AS total_profit
             FROM sales
-            WHERE date(created_at) = date('now')
+            WHERE date(created_at) = date('now') AND voided = 0
             """
         ).fetchone()
 
@@ -49,7 +49,7 @@ def range_report(
                 COALESCE(SUM(total_amount), 0) AS total_revenue,
                 COALESCE(SUM(total_profit), 0) AS total_profit
             FROM sales
-            WHERE date(created_at) BETWEEN ? AND ?
+            WHERE date(created_at) BETWEEN ? AND ? AND voided = 0
             """,
             (from_date, to_date),
         ).fetchone()

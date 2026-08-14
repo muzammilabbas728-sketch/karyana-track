@@ -166,4 +166,13 @@ export function recordCustomerPayment(customerId, amount) {
   });
 }
 
+export function getSales() {
+  return apiRequest("/sales", { method: "GET" });
+}
+
+export function voidSale(saleId) {
+  return apiRequest(`/sales/${saleId}/void`, { method: "POST" });
+}
+
+
 

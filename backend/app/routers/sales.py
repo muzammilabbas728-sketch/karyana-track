@@ -5,7 +5,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .auth import get_current_user
+from .auth import get_current_user, require_role
 from ..database import transaction
 from ..models import SaleCreate, SaleItemResponse, SaleResponse
 
@@ -95,10 +95,10 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
 
             cursor.execute(
                 """
-                INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, unit_cost)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, unit_cost, stock_deducted)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (sale_id, item.product_id, item.quantity, unit_price, unit_cost),
+                (sale_id, item.product_id, item.quantity, unit_price, unit_cost, stock_deducted),
             )
 
             cursor.execute(
@@ -155,3 +155,42 @@ def create_sale(sale: SaleCreate, current_user: dict = Depends(get_current_user)
             for row in item_rows
         ],
     )
+
+
+@router.post("/{sale_id}/void")
+def void_sale(sale_id: int, current_user: dict = Depends(require_role("owner"))) -> dict:
+    """Void a sale: restores stock for all items and excludes it from revenue/profit totals. Owner only."""
+    with transaction() as cursor:
+        sale = cursor.execute("SELECT id, voided FROM sales WHERE id = ?", (sale_id,)).fetchone()
+        if sale is None:
+            raise HTTPException(status_code=404, detail="Sale not found")
+        if sale["voided"]:
+            raise HTTPException(status_code=400, detail="Sale is already voided")
+
+        items = cursor.execute(
+            "SELECT product_id, stock_deducted FROM sale_items WHERE sale_id = ?", (sale_id,)
+        ).fetchall()
+
+        for item in items:
+            cursor.execute(
+                "UPDATE products SET quantity_in_stock = quantity_in_stock + ? WHERE id = ?",
+                (item["stock_deducted"], item["product_id"]),
+            )
+
+        cursor.execute(
+            "UPDATE sales SET voided = 1, voided_at = ? WHERE id = ?",
+            (datetime.utcnow(), sale_id),
+        )
+
+    return {"detail": "Sale voided successfully"}
+
+
+@router.get("")
+def list_sales(current_user: dict = Depends(require_role("owner"))) -> list:
+    """List recent sales (most recent first, last 50), owner only."""
+    with transaction() as cursor:
+        rows = cursor.execute(
+            "SELECT id, total_amount, total_profit, payment_status, voided, created_at "
+            "FROM sales ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+    return [dict(row) for row in rows]

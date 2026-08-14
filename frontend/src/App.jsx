@@ -6,6 +6,7 @@ import OwnerDashboard from "./pages/OwnerDashboard";
 import InventoryPage from "./pages/InventoryPage";
 import UsersPage from "./pages/UsersPage";
 import CustomersPage from "./pages/CustomersPage";
+import SalesHistoryPage from "./pages/SalesHistoryPage";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -154,6 +155,37 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setActiveView("sales-history")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "sales-history") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "sales-history") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "sales-history" ? colors.primary : "transparent",
+                  color: activeView === "sales-history" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
+                }}
+              >
+                Sales History
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveView("users")}
                 onMouseEnter={(event) => {
                   if (activeView !== "users") {
@@ -242,6 +274,8 @@ export default function App() {
           <OwnerDashboard />
         ) : activeView === "inventory" && isOwner ? (
           <InventoryPage />
+        ) : activeView === "sales-history" && isOwner ? (
+          <SalesHistoryPage />
         ) : activeView === "users" && isOwner ? (
           <UsersPage />
         ) : activeView === "customers" && isOwner ? (
