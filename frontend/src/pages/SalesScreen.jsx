@@ -22,6 +22,8 @@ export default function SalesScreen() {
   const [packEntryProductId, setPackEntryProductId] = useState(null);
   const [packEntryMode, setPackEntryMode] = useState("pack");
   const [packEntryAmount, setPackEntryAmount] = useState("1");
+  const [pieceEntryProductId, setPieceEntryProductId] = useState(null);
+  const [pieceEntryAmount, setPieceEntryAmount] = useState("1");
   const [paymentMode, setPaymentMode] = useState("paid");
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -53,13 +55,13 @@ export default function SalesScreen() {
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  function handleAddToCart(product) {
+  function handleAddToCart(product, quantity = 1) {
     setCart((currentCart) => {
       const existing = currentCart.find((item) => item.product_id === product.id);
       if (existing) {
         return currentCart.map((item) =>
           item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
@@ -69,7 +71,7 @@ export default function SalesScreen() {
           product_id: product.id,
           name: product.name,
           unit_price: product.selling_price,
-          quantity: 1,
+          quantity: quantity,
           unit_type: product.unit_type,
           sell_as_pack: false,
         },
@@ -280,7 +282,68 @@ export default function SalesScreen() {
                   </div>
                 </div>
 
-                {packEntryProductId === product.id ? (
+                {pieceEntryProductId === product.id ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <label style={{ fontSize: "0.8rem", color: colors.muted }}>
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        value={pieceEntryAmount}
+                        onChange={(event) => setPieceEntryAmount(event.target.value)}
+                        style={{
+                          width: "90px",
+                          ...styles.input,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const quantity = Number(pieceEntryAmount);
+                          if (Number.isNaN(quantity) || quantity <= 0) {
+                            setError("Enter a valid amount");
+                            return;
+                          }
+
+                          handleAddToCart(product, quantity);
+                          setPieceEntryProductId(null);
+                          setPieceEntryAmount("1");
+                          setError(null);
+                        }}
+                        style={{
+                          ...styles.buttonPrimary,
+                          padding: "0.5rem 0.75rem",
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPieceEntryProductId(null);
+                          setPieceEntryAmount("1");
+                          setError(null);
+                        }}
+                        style={{
+                          ...styles.buttonSecondary,
+                          padding: "0.5rem 0.75rem",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : packEntryProductId === product.id ? (
                   <div
                     style={{
                       display: "flex",
@@ -444,7 +507,9 @@ export default function SalesScreen() {
                     type="button"
                     onClick={() => {
                       if (product.unit_type === "piece") {
-                        handleAddToCart(product);
+                        setPieceEntryProductId(product.id);
+                        setPieceEntryAmount("1");
+                        setError(null);
                         return;
                       }
 
