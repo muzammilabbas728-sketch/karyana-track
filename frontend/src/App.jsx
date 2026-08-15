@@ -7,6 +7,7 @@ import InventoryPage from "./pages/InventoryPage";
 import UsersPage from "./pages/UsersPage";
 import CustomersPage from "./pages/CustomersPage";
 import SalesHistoryPage from "./pages/SalesHistoryPage";
+import SuppliersPage from "./pages/SuppliersPage";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -132,6 +133,37 @@ export default function App() {
             Sales History
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveView("customers")}
+            onMouseEnter={(event) => {
+              if (activeView !== "customers") {
+                event.currentTarget.style.backgroundColor = colors.bg;
+              }
+            }}
+            onMouseLeave={(event) => {
+              if (activeView !== "customers") {
+                event.currentTarget.style.backgroundColor = "transparent";
+              }
+            }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "0.75rem 1rem",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              marginBottom: "0.5rem",
+              backgroundColor:
+                activeView === "customers" ? colors.primary : "transparent",
+              color: activeView === "customers" ? "#fff" : colors.ink,
+              fontFamily: fonts.body,
+              fontWeight: 600,
+            }}
+          >
+            Customers
+          </button>
+
           {isOwner ? (
             <>
               <button
@@ -163,6 +195,37 @@ export default function App() {
                 }}
               >
                 Dashboard
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("suppliers")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "suppliers") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "suppliers") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "suppliers" ? colors.primary : "transparent",
+                  color: activeView === "suppliers" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
+                }}
+              >
+                Suppliers
               </button>
 
               <button
@@ -226,37 +289,6 @@ export default function App() {
               >
                 Users
               </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveView("customers")}
-                onMouseEnter={(event) => {
-                  if (activeView !== "customers") {
-                    event.currentTarget.style.backgroundColor = colors.bg;
-                  }
-                }}
-                onMouseLeave={(event) => {
-                  if (activeView !== "customers") {
-                    event.currentTarget.style.backgroundColor = "transparent";
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  marginBottom: "0.5rem",
-                  backgroundColor:
-                    activeView === "customers" ? colors.primary : "transparent",
-                  color: activeView === "customers" ? "#fff" : colors.ink,
-                  fontFamily: fonts.body,
-                  fontWeight: 600,
-                }}
-              >
-                Customers
-              </button>
             </>
           ) : null}
         </div>
@@ -302,11 +334,13 @@ export default function App() {
           <SalesHistoryPage />
         ) : activeView === "dashboard" && isOwner ? (
           <OwnerDashboard />
+        ) : activeView === "suppliers" && isOwner ? (
+          <SuppliersPage />
         ) : activeView === "inventory" && isOwner ? (
           <InventoryPage />
         ) : activeView === "users" && isOwner ? (
           <UsersPage />
-        ) : activeView === "customers" && isOwner ? (
+        ) : activeView === "customers" ? (
           <CustomersPage />
         ) : (
           <SalesScreen />
@@ -315,5 +349,3 @@ export default function App() {
     </div>
   );
 }
-
-

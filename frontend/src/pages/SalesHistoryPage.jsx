@@ -218,6 +218,21 @@ export default function SalesHistoryPage() {
   const activeSalesCount = sales.filter((s) => !s.voided).length;
   const voidedSalesCount = sales.filter((s) => s.voided).length;
 
+  const nonVoidedSales = sales.filter((s) => !s.voided);
+
+  const cogs = nonVoidedSales.reduce(
+    (sum, s) => sum + (Number(s.total_amount || 0) - Number(s.total_profit || 0)),
+    0
+  );
+
+  const totalCash = nonVoidedSales
+    .filter((s) => s.payment_status === "paid")
+    .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+
+  const totalCredit = nonVoidedSales
+    .filter((s) => s.payment_status === "credit")
+    .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+
   return (
     <section
       style={{
@@ -269,6 +284,53 @@ export default function SalesHistoryPage() {
           <div style={styles.label}>Voided Sales</div>
           <div style={{ fontSize: "1.3rem", fontWeight: 700, color: colors.danger, marginTop: "0.25rem" }}>
             {voidedSalesCount}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+        }}
+      >
+        {isOwner ? (
+          <div
+            style={{
+              padding: "1rem",
+              ...styles.cardAccent(colors.muted),
+            }}
+          >
+            <strong>Cost of Goods Sold (COGS)</strong>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
+              Rs. {cogs.toFixed(2)}
+            </div>
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            padding: "1rem",
+            ...styles.cardAccent(colors.primary),
+          }}
+        >
+          <strong>Cash Collected</strong>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
+            Rs. {totalCash.toFixed(2)}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "1rem",
+            ...styles.cardAccent(colors.warning),
+          }}
+        >
+          <strong>Credit Given</strong>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
+            Rs. {totalCredit.toFixed(2)}
           </div>
         </div>
       </div>

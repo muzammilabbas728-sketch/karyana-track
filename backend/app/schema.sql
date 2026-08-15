@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
     username      TEXT NOT NULL UNIQUE,
@@ -7,7 +7,7 @@ CREATE TABLE users (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
     barcode             TEXT UNIQUE,
@@ -22,7 +22,7 @@ CREATE TABLE products (
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id        INTEGER NOT NULL,
     customer_id    INTEGER,
@@ -36,7 +36,7 @@ CREATE TABLE sales (
     FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
 
-CREATE TABLE sale_items (
+CREATE TABLE IF NOT EXISTS sale_items (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     sale_id        INTEGER NOT NULL,
     product_id     INTEGER NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE sale_items (
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
-CREATE TABLE stock_adjustments (
+CREATE TABLE IF NOT EXISTS stock_adjustments (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id    INTEGER NOT NULL,
     user_id       INTEGER NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE stock_adjustments (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     token       TEXT PRIMARY KEY,
     user_id     INTEGER NOT NULL,
     expires_at  TIMESTAMP NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE sessions (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
     phone         TEXT,
@@ -75,7 +75,7 @@ CREATE TABLE customers (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE customer_payments (
+CREATE TABLE IF NOT EXISTS customer_payments (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_id   INTEGER NOT NULL,
     user_id       INTEGER NOT NULL,
@@ -85,9 +85,65 @@ CREATE TABLE customer_payments (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE INDEX idx_sale_items_sale_id ON sale_items(sale_id);
-CREATE INDEX idx_sale_items_product_id ON sale_items(product_id);
-CREATE INDEX idx_sales_created_at ON sales(created_at);
-CREATE INDEX idx_sales_customer_id ON sales(customer_id);
-CREATE INDEX idx_customer_payments_customer_id ON customer_payments(customer_id);
+CREATE TABLE IF NOT EXISTS investments (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL,
+    amount        REAL NOT NULL CHECK (amount > 0),
+    description   TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 
+CREATE TABLE IF NOT EXISTS suppliers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL UNIQUE,
+    phone       TEXT,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id  INTEGER NOT NULL,
+    user_id      INTEGER NOT NULL,
+    amount       REAL NOT NULL CHECK (amount > 0),
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS inventory_purchases (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL,
+    supplier_id     INTEGER,
+    supplier_name   TEXT,
+    total_cost      REAL NOT NULL CHECK (total_cost >= 0),
+    payment_status  TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('paid', 'credit', 'pending', 'partial')),
+    amount_paid     REAL NOT NULL DEFAULT 0 CHECK (amount_paid >= 0),
+    notes           TEXT,
+    status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled')),
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_items (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_id    INTEGER NOT NULL,
+    product_id     INTEGER NOT NULL,
+    quantity       INTEGER NOT NULL CHECK (quantity > 0),
+    cost_price     REAL NOT NULL CHECK (cost_price >= 0),
+    total_cost     REAL NOT NULL CHECK (total_cost >= 0),
+    FOREIGN KEY (purchase_id) REFERENCES inventory_purchases(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_customer_id ON customer_payments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_investments_user_id ON investments(user_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_purchases_user_id ON inventory_purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_purchases_supplier_id ON inventory_purchases(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_supplier_id ON supplier_payments(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);

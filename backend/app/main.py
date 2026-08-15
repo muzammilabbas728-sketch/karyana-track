@@ -1,9 +1,12 @@
 """FastAPI application entry-point."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from .routers import auth, customers, products, reports, sales, users
+from .routers import auth, customers, investments, products, purchases, reports, sales, suppliers, users
 
 app = FastAPI(title="Karyana Track")
 
@@ -23,3 +26,11 @@ app.include_router(auth.router)
 app.include_router(reports.router)
 app.include_router(users.router)
 app.include_router(customers.router)
+app.include_router(investments.router)
+app.include_router(purchases.router)
+app.include_router(suppliers.router)
+
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+if os.path.exists(frontend_dist):
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+

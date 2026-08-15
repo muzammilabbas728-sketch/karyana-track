@@ -134,7 +134,7 @@ def get_customer(
 @router.get("/{customer_id}/history", response_model=List[Dict[str, Any]])
 def get_customer_history(
     customer_id: int,
-    current_user: dict = Depends(require_role("owner")),
+    current_user: dict = Depends(get_current_user),
 ) -> List[Dict[str, Any]]:
     """Retrieve combined chronological credit sales and payment history for a customer (owner only)."""
     with transaction() as cursor:

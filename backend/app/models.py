@@ -235,3 +235,130 @@ class CustomerPaymentResponse(BaseModel):
     created_at: datetime = Field(..., description="Payment timestamp")
 
 
+class InvestmentCreate(BaseModel):
+    """Schema used to record an owner capital investment."""
+
+    amount: float = Field(..., gt=0, description="Capital investment amount")
+    description: Optional[str] = Field(default=None, description="Note or description for the investment")
+
+
+class InvestmentResponse(BaseModel):
+    """Response payload for an owner capital investment record."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Investment identifier")
+    user_id: int = Field(..., description="User ID who recorded the investment")
+    user_name: Optional[str] = Field(default=None, description="Name of user who recorded the investment")
+    amount: float = Field(..., description="Capital investment amount")
+    description: Optional[str] = Field(default=None, description="Investment description or note")
+    created_at: datetime = Field(..., description="Investment timestamp")
+
+
+class InvestmentSummaryResponse(BaseModel):
+    """Response payload containing total owner investment and history."""
+
+    total_investment: float = Field(..., description="Sum of all owner capital investments")
+    investments: List[InvestmentResponse] = Field(..., description="List of investment records")
+
+
+class SupplierCreate(BaseModel):
+    """Schema for creating a supplier."""
+
+    name: str = Field(..., min_length=1, description="Supplier or vendor name")
+    phone: Optional[str] = Field(default=None, description="Supplier phone number")
+
+
+class SupplierResponse(BaseModel):
+    """Response payload for a supplier."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Supplier identifier")
+    name: str = Field(..., description="Supplier name")
+    phone: Optional[str] = Field(default=None, description="Supplier phone number")
+    created_at: datetime = Field(..., description="Account creation timestamp")
+    balance_owed: float = Field(0.0, description="Computed net balance owed to supplier")
+
+
+class SupplierPaymentCreate(BaseModel):
+    """Schema for recording a payment to a supplier."""
+
+    amount: float = Field(..., gt=0, description="Payment amount")
+
+
+class SupplierPaymentResponse(BaseModel):
+    """Response payload for a recorded supplier payment."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Payment identifier")
+    supplier_id: int = Field(..., description="Supplier identifier")
+    user_id: int = Field(..., description="User ID who recorded payment")
+    user_name: Optional[str] = Field(default=None, description="Name of user who recorded payment")
+    amount: float = Field(..., description="Payment amount")
+    created_at: datetime = Field(..., description="Payment timestamp")
+
+
+class PurchaseItemCreate(BaseModel):
+    """Schema for an item in a purchase record."""
+
+    product_id: int = Field(..., description="Product identifier")
+    quantity: int = Field(..., gt=0, description="Quantity purchased")
+    cost_price: float = Field(..., ge=0, description="Cost per unit purchased")
+
+
+class PurchaseCreate(BaseModel):
+    """Schema used to record an inventory purchase."""
+
+    supplier_id: Optional[int] = Field(default=None, description="Supplier ID if selected from directory")
+    supplier_name: Optional[str] = Field(default=None, description="Supplier name or vendor")
+    payment_status: Literal["paid", "partial", "credit"] = Field(
+        default="paid", description="Payment status of purchase ('paid', 'partial', 'credit')"
+    )
+    amount_paid: Optional[float] = Field(default=0.0, ge=0, description="Amount paid immediately for partial/paid purchases")
+    notes: Optional[str] = Field(default=None, description="Optional note or reference for purchase")
+    items: List[PurchaseItemCreate] = Field(..., min_length=1, description="Purchase line items")
+
+
+class PurchaseItemResponse(BaseModel):
+    """Response payload for a purchase line item."""
+
+    model_config = {"from_attributes": True}
+
+    product_id: int = Field(..., description="Product identifier")
+    product_name: str = Field(..., description="Product name")
+    quantity: int = Field(..., description="Quantity purchased")
+    cost_price: float = Field(..., description="Unit cost price")
+    total_cost: float = Field(..., description="Line total cost")
+
+
+class PurchaseResponse(BaseModel):
+    """Response payload for an inventory purchase record."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Purchase identifier")
+    user_id: int = Field(..., description="User ID who recorded the purchase")
+    user_name: Optional[str] = Field(default=None, description="User display name")
+    supplier_id: Optional[int] = Field(default=None, description="Supplier ID")
+    supplier_name: Optional[str] = Field(default=None, description="Supplier name")
+    total_cost: float = Field(..., description="Total purchase cost")
+    payment_status: str = Field(..., description="Payment status ('paid', 'partial', 'credit')")
+    amount_paid: float = Field(0.0, description="Amount paid upfront")
+    notes: Optional[str] = Field(default=None, description="Purchase notes")
+    status: str = Field(..., description="Purchase status ('active' or 'cancelled')")
+    created_at: datetime = Field(..., description="Purchase creation timestamp")
+    items: List[PurchaseItemResponse] = Field(..., description="Purchase line items")
+
+
+class PurchaseSummaryResponse(BaseModel):
+    """Response payload containing total investment in inventory purchases and history."""
+
+    total_investment: float = Field(..., description="Sum of active inventory purchase costs")
+    purchases: List[PurchaseResponse] = Field(..., description="List of inventory purchase records")
+
+
+
+
+

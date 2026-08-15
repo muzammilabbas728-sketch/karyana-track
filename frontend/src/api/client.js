@@ -1,4 +1,5 @@
-const BASE_URL = "http://192.168.1.6:8000"; // TODO: use VITE_API_BASE_URL from env in the future
+const BASE_URL = window.location.origin;
+
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
@@ -192,6 +193,66 @@ export function updateSale(saleId, payload) {
 export function voidSale(saleId) {
   return apiRequest(`/sales/${saleId}/void`, { method: "POST" });
 }
+
+export function getInvestments() {
+  return apiRequest("/investments", { method: "GET" });
+}
+
+export function createInvestment(payload) {
+  return apiRequest("/investments", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function getPurchases() {
+  return apiRequest("/purchases", { method: "GET" });
+}
+
+export function createPurchase(payload) {
+  return apiRequest("/purchases", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function cancelPurchase(purchaseId) {
+  return apiRequest(`/purchases/${purchaseId}/cancel`, {
+    method: "POST",
+  });
+}
+
+export function updatePurchase(purchaseId, payload) {
+  return apiRequest(`/purchases/${purchaseId}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function getSuppliers() {
+  return apiRequest("/suppliers", { method: "GET" });
+}
+
+export function createSupplier(payload) {
+  return apiRequest("/suppliers", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function getSupplierHistory(supplierId) {
+  return apiRequest(`/suppliers/${supplierId}/history`, { method: "GET" });
+}
+
+export function createSupplierPayment(supplierId, amount) {
+  return apiRequest(`/suppliers/${supplierId}/payments`, {
+    method: "POST",
+    body: { amount: Number(amount) },
+  });
+}
+
+
+
 
 
 
