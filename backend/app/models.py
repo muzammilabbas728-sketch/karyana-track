@@ -306,6 +306,8 @@ class PurchaseItemCreate(BaseModel):
     product_id: int = Field(..., description="Product identifier")
     quantity: int = Field(..., gt=0, description="Quantity purchased")
     cost_price: float = Field(..., ge=0, description="Cost per unit purchased")
+    is_new_product: Optional[bool] = Field(default=False, description="Whether product was created with initial stock set")
+    skip_stock_increment: Optional[bool] = Field(default=False, description="Whether to skip stock increment step")
 
 
 class PurchaseCreate(BaseModel):

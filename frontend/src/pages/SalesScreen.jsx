@@ -28,6 +28,10 @@ export default function SalesScreen() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [amountReceived, setAmountReceived] = useState("");
+  const [lastReceipt, setLastReceipt] = useState(null);
+  const [showReceiptPanel, setShowReceiptPanel] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -203,12 +207,33 @@ export default function SalesScreen() {
 
     try {
       const response = await createSale(items, customerId, paymentMode);
+      const custObj = paymentMode === "credit" ? customers.find((c) => c.id === customerId) : null;
+
+      setLastReceipt({
+        id: response.id,
+        created_at: response.created_at || new Date().toISOString(),
+        total_amount: response.total_amount,
+        payment_status: paymentMode,
+        customer_name: custObj ? custObj.name : null,
+        items: cart.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          unit_type: item.unit_type,
+          sell_as_pack: item.sell_as_pack,
+          line_total: item.unit_price * item.quantity,
+        })),
+      });
+      setShowReceiptPanel(false);
+
       setSuccessMessage(`Sale completed! Total: Rs. ${response.total_amount}`);
       setCart([]);
       setPaymentMode("paid");
       setSelectedCustomerId(null);
       setShowNewCustomerForm(false);
       setNewCustomerName("");
+      setShowCalculator(false);
+      setAmountReceived("");
 
       const [refreshedProducts, refreshedCustomers] = await Promise.all([
         getProducts(),
@@ -556,7 +581,142 @@ export default function SalesScreen() {
           <p style={{ color: colors.danger }}>{error}</p>
         ) : null}
         {successMessage ? (
-          <p style={{ color: colors.primary }}>{successMessage}</p>
+          <p style={{ color: colors.primary, marginBottom: lastReceipt ? "0.5rem" : "1rem" }}>{successMessage}</p>
+        ) : null}
+
+        {lastReceipt ? (
+          <div style={{ marginBottom: "1rem" }}>
+            <button
+              type="button"
+              onClick={() => setShowReceiptPanel((prev) => !prev)}
+              style={{
+                ...styles.buttonSecondary,
+                padding: "0.4rem 0.75rem",
+                fontSize: "0.85rem",
+              }}
+            >
+              {showReceiptPanel ? "Hide Receipt" : "View Receipt"}
+            </button>
+
+            {showReceiptPanel ? (
+              <div
+                style={{
+                  ...styles.card,
+                  marginTop: "0.75rem",
+                  padding: "1rem",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "10px",
+                  backgroundColor: colors.card,
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "0.75rem",
+                    borderBottom: `1px solid ${colors.border}`,
+                    paddingBottom: "0.5rem",
+                  }}
+                >
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "1.05rem", fontFamily: fonts.body }}>Receipt / Invoice</h3>
+                    <span style={{ fontSize: "0.8rem", color: colors.muted }}>
+                      Sale #{lastReceipt.id} • {new Date(lastReceipt.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: lastReceipt.payment_status === "credit" ? colors.warning : colors.primary,
+                      textTransform: "capitalize",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {lastReceipt.payment_status === "credit"
+                      ? `Credit (${lastReceipt.customer_name || "Customer"})`
+                      : "Cash"}
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gap: "0.4rem", marginBottom: "0.75rem" }}>
+                  {lastReceipt.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "0.85rem",
+                        padding: "0.25rem 0",
+                        borderBottom: `1px dashed ${colors.border}`,
+                      }}
+                    >
+                      <div>
+                        <strong>{item.name}</strong>
+                        <div style={{ fontSize: "0.75rem", color: colors.muted }}>
+                          {item.unit_type === "weight"
+                            ? item.quantity >= 1000
+                              ? `${(item.quantity / 1000).toFixed(2)} kg x Rs. ${(item.unit_price * 1000).toFixed(2)}/kg`
+                              : `${item.quantity} g x Rs. ${(item.unit_price * 1000).toFixed(2)}/kg`
+                            : item.unit_type === "pack"
+                              ? item.sell_as_pack
+                                ? `${item.quantity} pack(s) x Rs. ${item.unit_price}`
+                                : `${item.quantity} loose unit(s) x Rs. ${item.unit_price.toFixed(2)}`
+                              : `${item.quantity} x Rs. ${item.unit_price}`}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 600, alignSelf: "center" }}>
+                        Rs. {Number(item.line_total).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    color: colors.primary,
+                    borderTop: `2px solid ${colors.border}`,
+                    paddingTop: "0.5rem",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  <span>Grand Total:</span>
+                  <span>Rs. {Number(lastReceipt.total_amount).toFixed(2)}</span>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    style={{
+                      ...styles.buttonPrimary,
+                      padding: "0.35rem 0.75rem",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    Print
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReceiptPanel(false)}
+                    style={{
+                      ...styles.buttonSecondary,
+                      padding: "0.35rem 0.75rem",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {cart.length === 0 ? (
@@ -751,6 +911,73 @@ export default function SalesScreen() {
                       >
                         Add
                       </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div style={{ marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (showCalculator) {
+                    setAmountReceived("");
+                    setShowCalculator(false);
+                  } else {
+                    setShowCalculator(true);
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: colors.primary,
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  padding: 0,
+                  marginBottom: showCalculator ? "0.4rem" : "0",
+                  display: "inline-block",
+                }}
+              >
+                {showCalculator ? "− Hide Change Calculator" : "+ Calculate Change"}
+              </button>
+
+              {showCalculator ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "0.5rem",
+                    padding: "0.6rem 0.75rem",
+                    backgroundColor: colors.bg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: "8px",
+                  }}
+                >
+                  <label style={{ ...styles.label, fontSize: "0.8rem", margin: 0 }}>
+                    Amount Received (Rs.)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={amountReceived}
+                      onChange={(e) => setAmountReceived(e.target.value)}
+                      placeholder="e.g. 500"
+                      style={{ ...styles.input, marginTop: "0.25rem", padding: "0.35rem 0.5rem" }}
+                    />
+                  </label>
+
+                  {amountReceived.trim() !== "" && !Number.isNaN(Number(amountReceived)) && Number(amountReceived) >= 0 ? (
+                    <div style={{ fontSize: "0.85rem" }}>
+                      {Number(amountReceived) >= grandTotal ? (
+                        <span style={{ color: colors.primary, fontWeight: 600 }}>
+                          Change to give: Rs. {(Number(amountReceived) - grandTotal).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span style={{ color: colors.danger, fontWeight: 600 }}>
+                          Change to give: Rs. 0.00 (Rs. {(grandTotal - Number(amountReceived)).toFixed(2)} short)
+                        </span>
+                      )}
                     </div>
                   ) : null}
                 </div>

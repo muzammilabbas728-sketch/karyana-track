@@ -5,24 +5,27 @@ from datetime import datetime, timedelta
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from passlib.context import CryptContext
+import bcrypt
 
 from ..database import transaction
 from ..models import LoginRequest, LoginResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_pin(pin: str) -> str:
     """Hash a PIN using bcrypt."""
-    return pwd_context.hash(pin)
+    pin_bytes = pin.encode("utf-8")[:72]
+    return bcrypt.hashpw(pin_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_pin(pin: str, hashed: str) -> bool:
     """Verify a plaintext PIN against a hashed value."""
-    return pwd_context.verify(pin, hashed)
+    try:
+        pin_bytes = pin.encode("utf-8")[:72]
+        return bcrypt.checkpw(pin_bytes, hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def create_session(user_id: int) -> str:

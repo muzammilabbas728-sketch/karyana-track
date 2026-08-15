@@ -239,8 +239,10 @@ export default function OwnerDashboard() {
 
       for (const item of purchaseItems) {
         let targetProductId = item.product_id;
+        let isNewProduct = false;
 
         if (item.product_id === "__NEW__") {
+          isNewProduct = true;
           const uType = item.unit_type || "piece";
           const rawQty = Number(item.quantity);
           const rawThreshold = Number(
@@ -279,6 +281,8 @@ export default function OwnerDashboard() {
           product_id: Number(targetProductId),
           quantity: Number(item.quantity),
           cost_price: Number(item.cost_price),
+          is_new_product: isNewProduct,
+          skip_stock_increment: isNewProduct,
         });
       }
 
@@ -294,6 +298,8 @@ export default function OwnerDashboard() {
           return;
         }
       }
+
+      console.log("[PURCHASE SUBMIT] finalPurchaseItems:", finalPurchaseItems);
 
       if (editingPurchaseId) {
         await updatePurchase(editingPurchaseId, {

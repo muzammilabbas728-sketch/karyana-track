@@ -154,6 +154,8 @@ def create_purchase(
 
             line_cost = round(item.quantity * item.cost_price, 2)
             total_purchase_cost += line_cost
+            is_new = bool(getattr(item, "is_new_product", False) or getattr(item, "skip_stock_increment", False))
+            print(f"[PURCHASE CREATE ITEM] product_id={item.product_id}, is_new={is_new}, quantity={item.quantity}", flush=True)
             validated_items.append({
                 "product_id": item.product_id,
                 "product_name": product["name"],
@@ -161,6 +163,7 @@ def create_purchase(
                 "cost_price": item.cost_price,
                 "line_cost": line_cost,
                 "current_stock": product["quantity_in_stock"],
+                "is_new_product": is_new,
             })
 
         total_purchase_cost = round(total_purchase_cost, 2)
@@ -211,19 +214,25 @@ def create_purchase(
                 (purchase_id, v["product_id"], v["quantity"], v["cost_price"], v["line_cost"]),
             )
 
-            new_stock = v["current_stock"] + v["quantity"]
-            cursor.execute(
-                "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
-                (new_stock, v["cost_price"], now, v["product_id"]),
-            )
+            if not v["is_new_product"]:
+                new_stock = v["current_stock"] + v["quantity"]
+                cursor.execute(
+                    "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
+                    (new_stock, v["cost_price"], now, v["product_id"]),
+                )
 
-            cursor.execute(
-                """
-                INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
-                VALUES (?, ?, ?, 'restock', ?)
-                """,
-                (v["product_id"], current_user["id"], v["quantity"], now),
-            )
+                cursor.execute(
+                    """
+                    INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
+                    VALUES (?, ?, ?, 'restock', ?)
+                    """,
+                    (v["product_id"], current_user["id"], v["quantity"], now),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?",
+                    (v["cost_price"], now, v["product_id"]),
+                )
 
         # Retrieve created purchase record
         p_row = cursor.execute(
@@ -414,6 +423,7 @@ def update_purchase(
 
             line_cost = round(item.quantity * item.cost_price, 2)
             total_purchase_cost += line_cost
+            is_new = bool(getattr(item, "is_new_product", False) or getattr(item, "skip_stock_increment", False))
             validated_items.append({
                 "product_id": item.product_id,
                 "product_name": product["name"],
@@ -421,6 +431,7 @@ def update_purchase(
                 "cost_price": item.cost_price,
                 "line_cost": line_cost,
                 "current_stock": product["quantity_in_stock"],
+                "is_new_product": is_new,
             })
 
         total_purchase_cost = round(total_purchase_cost, 2)
@@ -470,19 +481,25 @@ def update_purchase(
                 (purchase_id, v["product_id"], v["quantity"], v["cost_price"], v["line_cost"]),
             )
 
-            new_stock = v["current_stock"] + v["quantity"]
-            cursor.execute(
-                "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
-                (new_stock, v["cost_price"], now, v["product_id"]),
-            )
+            if not v["is_new_product"]:
+                new_stock = v["current_stock"] + v["quantity"]
+                cursor.execute(
+                    "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
+                    (new_stock, v["cost_price"], now, v["product_id"]),
+                )
 
-            cursor.execute(
-                """
-                INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
-                VALUES (?, ?, ?, 'correction', ?)
-                """,
-                (v["product_id"], current_user["id"], v["quantity"], now),
-            )
+                cursor.execute(
+                    """
+                    INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
+                    VALUES (?, ?, ?, 'correction', ?)
+                    """,
+                    (v["product_id"], current_user["id"], v["quantity"], now),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?",
+                    (v["cost_price"], now, v["product_id"]),
+                )
 
         # Fetch updated record
         updated_p_row = cursor.execute(
