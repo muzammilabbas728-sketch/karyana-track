@@ -26,6 +26,50 @@ function toInputValue(value) {
   return value === null || value === undefined ? "" : String(value);
 }
 
+function calculateUnitAwareInvestment(prods) {
+  if (!Array.isArray(prods)) return 0;
+  return prods.reduce((sum, p) => {
+    const cost = Number(p.cost_price) || 0;
+    const qty = Number(p.quantity_in_stock) || 0;
+    const unitType = p.unit_type;
+    const unitsPerPack = Number(p.units_per_pack) || 1;
+
+    let itemInv = 0;
+    if (unitType === "piece") {
+      itemInv = cost * qty;
+    } else if (unitType === "weight") {
+      itemInv = cost * (qty / 1000);
+    } else if (unitType === "pack") {
+      itemInv = cost * (unitsPerPack > 0 ? qty / unitsPerPack : qty);
+    } else {
+      itemInv = cost * qty;
+    }
+    return sum + itemInv;
+  }, 0);
+}
+
+function calculateUnitAwareRetailValue(prods) {
+  if (!Array.isArray(prods)) return 0;
+  return prods.reduce((sum, p) => {
+    const price = Number(p.selling_price) || 0;
+    const qty = Number(p.quantity_in_stock) || 0;
+    const unitType = p.unit_type;
+    const unitsPerPack = Number(p.units_per_pack) || 1;
+
+    let itemVal = 0;
+    if (unitType === "piece") {
+      itemVal = price * qty;
+    } else if (unitType === "weight") {
+      itemVal = price * (qty / 1000);
+    } else if (unitType === "pack") {
+      itemVal = price * (unitsPerPack > 0 ? qty / unitsPerPack : qty);
+    } else {
+      itemVal = price * qty;
+    }
+    return sum + itemVal;
+  }, 0);
+}
+
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -280,7 +324,7 @@ export default function InventoryPage() {
         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
         <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", margin: 0 }}>Inventory</h2>
         <button
           type="button"
@@ -297,6 +341,72 @@ export default function InventoryPage() {
         >
           {showAddForm ? "Cancel" : "Add Product"}
         </button>
+      </div>
+
+      {/* Live Inventory Valuation & Remaining Stock Summary */}
+      <div
+        style={{
+          display: "grid",
+          gap: "0.75rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          marginBottom: "1.25rem",
+        }}
+      >
+        <div
+          style={{
+            padding: "0.85rem 1rem",
+            ...styles.cardAccent(colors.primary),
+          }}
+        >
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase" }}>
+            Remaining Stock Cost
+          </div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+            Rs. {calculateUnitAwareInvestment(products).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "0.85rem 1rem",
+            ...styles.cardAccent(colors.primary),
+          }}
+        >
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase" }}>
+            Retail Valuation
+          </div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+            Rs. {calculateUnitAwareRetailValue(products).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "0.85rem 1rem",
+            ...styles.cardAccent(colors.primary),
+          }}
+        >
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase" }}>
+            Potential Profit
+          </div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+            Rs. {(calculateUnitAwareRetailValue(products) - calculateUnitAwareInvestment(products)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "0.85rem 1rem",
+            ...styles.cardAccent(colors.primary),
+          }}
+        >
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase" }}>
+            Active Products
+          </div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+            {products.length} Products
+          </div>
+        </div>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>

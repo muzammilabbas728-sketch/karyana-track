@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { colors, fonts, styles } from "./theme";
+import { getLicenseStatus } from "./api/client";
+import ActivationPage from "./pages/ActivationPage";
 import LoginPage from "./pages/LoginPage";
 import SalesScreen from "./pages/SalesScreen";
 import OwnerDashboard from "./pages/OwnerDashboard";
@@ -8,8 +10,11 @@ import UsersPage from "./pages/UsersPage";
 import CustomersPage from "./pages/CustomersPage";
 import SalesHistoryPage from "./pages/SalesHistoryPage";
 import SuppliersPage from "./pages/SuppliersPage";
+import CashManagementPage from "./pages/CashManagementPage";
 
 export default function App() {
+  const [licenseChecked, setLicenseChecked] = useState(false);
+  const [isLicensed, setIsLicensed] = useState(false);
   const [loggedIn, setLoggedIn] = useState(
     Boolean(localStorage.getItem("auth_token"))
   );
@@ -17,6 +22,19 @@ export default function App() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem("app_theme") || "light"
   );
+
+  useEffect(() => {
+    getLicenseStatus()
+      .then((data) => {
+        setIsLicensed(Boolean(data?.licensed));
+      })
+      .catch(() => {
+        setIsLicensed(false);
+      })
+      .finally(() => {
+        setLicenseChecked(true);
+      });
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -38,6 +56,28 @@ export default function App() {
     setLoggedIn(false);
   }
 
+  if (!licenseChecked) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: colors.bg,
+          fontFamily: fonts.body,
+          color: colors.ink,
+        }}
+      >
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isLicensed) {
+    return <ActivationPage onActivated={() => window.location.reload()} />;
+  }
+
   if (!loggedIn) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
@@ -51,6 +91,8 @@ export default function App() {
       style={{
         display: "flex",
         minHeight: "100vh",
+        height: "100vh",
+        overflow: "hidden",
         fontFamily: fonts.body,
       }}
     >
@@ -62,6 +104,8 @@ export default function App() {
           padding: "1.5rem",
           display: "flex",
           flexDirection: "column",
+          overflowY: "auto",
+          height: "100%",
         }}
       >
         <div>
@@ -199,6 +243,37 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setActiveView("cash")}
+                onMouseEnter={(event) => {
+                  if (activeView !== "cash") {
+                    event.currentTarget.style.backgroundColor = colors.bg;
+                  }
+                }}
+                onMouseLeave={(event) => {
+                  if (activeView !== "cash") {
+                    event.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "0.5rem",
+                  backgroundColor:
+                    activeView === "cash" ? colors.primary : "transparent",
+                  color: activeView === "cash" ? "#fff" : colors.ink,
+                  fontFamily: fonts.body,
+                  fontWeight: 600,
+                }}
+              >
+                Cash Management
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveView("suppliers")}
                 onMouseEnter={(event) => {
                   if (activeView !== "suppliers") {
@@ -327,13 +402,16 @@ export default function App() {
           flex: 1,
           padding: "2rem",
           overflowY: "auto",
+          height: "100%",
           background: colors.bg,
         }}
       >
         {activeView === "sales-history" ? (
           <SalesHistoryPage />
         ) : activeView === "dashboard" && isOwner ? (
-          <OwnerDashboard />
+          <OwnerDashboard onNavigateToCash={() => setActiveView("cash")} />
+        ) : activeView === "cash" && isOwner ? (
+          <CashManagementPage />
         ) : activeView === "suppliers" && isOwner ? (
           <SuppliersPage />
         ) : activeView === "inventory" && isOwner ? (

@@ -2,9 +2,9 @@
 
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 import bcrypt
 
 from ..database import transaction
@@ -58,19 +58,24 @@ def login(payload: LoginRequest) -> LoginResponse:
     return LoginResponse(token=token, role=user["role"], name=user["name"])
 
 
-def get_current_user(authorization: str = Header(...)) -> Dict[str, Any]:
-    """Resolve the current authenticated user from a bearer token."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+def get_current_user(
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None),
+) -> Dict[str, Any]:
+    """Resolve the current authenticated user from a bearer token or query parameter."""
+    session_token = None
+    if authorization and authorization.startswith("Bearer "):
+        session_token = authorization.split(" ", 1)[1].strip()
+    elif token:
+        session_token = token.strip()
 
-    token = authorization.split(" ", 1)[1].strip()
-    if not token:
+    if not session_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     with transaction() as cursor:
         session = cursor.execute(
             "SELECT token, user_id, expires_at FROM sessions WHERE token = ?",
-            (token,),
+            (session_token,),
         ).fetchone()
 
     if session is None:

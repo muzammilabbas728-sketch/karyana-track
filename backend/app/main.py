@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .routers import auth, customers, investments, products, purchases, reports, sales, suppliers, users
+from .routers import admin, auth, cash, customers, investments, license, products, purchases, reports, sales, suppliers, users
 
 app = FastAPI(title="Karyana Track")
 
@@ -20,6 +20,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(license.router)
+app.include_router(cash.router)
 app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(auth.router)
@@ -29,6 +31,7 @@ app.include_router(customers.router)
 app.include_router(investments.router)
 app.include_router(purchases.router)
 app.include_router(suppliers.router)
+app.include_router(admin.router)
 
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
 if os.path.exists(frontend_dist):

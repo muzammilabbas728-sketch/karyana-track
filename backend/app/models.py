@@ -361,6 +361,139 @@ class PurchaseSummaryResponse(BaseModel):
     purchases: List[PurchaseResponse] = Field(..., description="List of inventory purchase records")
 
 
+class CashTransactionCreate(BaseModel):
+    """Payload for creating a non-sales/purchases cash transaction."""
+
+    type: str = Field(
+        ...,
+        description="Transaction type: 'owner_investment', 'owner_withdrawal', 'loan_given', 'loan_repayment', 'other_income', 'other_expense'",
+    )
+    amount: float = Field(..., gt=0, description="Amount of money involved (must be positive)")
+    description: Optional[str] = Field(default=None, description="Optional description/note")
+    date: Optional[str] = Field(default=None, description="Date in YYYY-MM-DD format (defaults to current date)")
+
+
+class CashTransactionResponse(BaseModel):
+    """Response model for a cash transaction."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Transaction identifier")
+    user_id: int = Field(..., description="User who recorded the transaction")
+    user_name: Optional[str] = Field(default=None, description="User name")
+    type: str = Field(..., description="Transaction type")
+    amount: float = Field(..., description="Transaction amount")
+    description: Optional[str] = Field(default=None, description="Note or description")
+    date: str = Field(..., description="Transaction date")
+    status: str = Field(..., description="Status ('active' or 'voided')")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+
+class CashBreakdownIn(BaseModel):
+    """Detailed breakdown of all cash inflows."""
+
+    sales_cash: float = Field(0.0, description="Cash received immediately from paid sales")
+    customer_payments: float = Field(0.0, description="Cash received from customer credit payments")
+    owner_investments: float = Field(0.0, description="Capital injected by owner")
+    loan_repayments: float = Field(0.0, description="Loan repayments received from third parties (Loan Given)")
+    bank_loans_received: float = Field(0.0, description="Money borrowed from bank loans")
+    other_income: float = Field(0.0, description="Other business income")
+    total: float = Field(0.0, description="Sum of all cash in")
+
+
+class CashBreakdownOut(BaseModel):
+    """Detailed breakdown of all cash outflows."""
+
+    purchases_paid: float = Field(0.0, description="Cash paid immediately for inventory purchases")
+    supplier_payments: float = Field(0.0, description="Payments made to suppliers for credit purchases")
+    owner_withdrawals: float = Field(0.0, description="Owner cash withdrawals")
+    loans_given: float = Field(0.0, description="Loans given to other people")
+    bank_loan_principal: float = Field(0.0, description="Bank loan principal repayments")
+    bank_loan_interest: float = Field(0.0, description="Bank loan interest paid")
+    other_expenses: float = Field(0.0, description="Other business expenses")
+    total: float = Field(0.0, description="Sum of all cash out")
+
+
+class CashSummaryResponse(BaseModel):
+    """Complete Business Cash summary and balance."""
+
+    current_balance: float = Field(..., description="Net liquid cash balance available (Money In - Money Out)")
+    total_money_in: float = Field(..., description="Total cash received across all sources")
+    total_money_out: float = Field(..., description="Total cash spent across all destinations")
+    total_outstanding_bank_loans: float = Field(0.0, description="Total current debt owed across active bank loans")
+    breakdown_in: CashBreakdownIn = Field(..., description="Breakdown of cash inflows")
+    breakdown_out: CashBreakdownOut = Field(..., description="Breakdown of cash outflows")
+    recent_transactions: List[CashTransactionResponse] = Field(default_factory=list, description="Recent cash transactions")
+
+
+class BankLoanCreate(BaseModel):
+    """Payload to record a new bank loan disbursal."""
+
+    bank_name: str = Field(..., min_length=1, description="Bank or financial institution name")
+    loan_amount: float = Field(..., gt=0, description="Borrowed loan amount (must be positive)")
+    disbursal_date: Optional[str] = Field(default=None, description="Disbursal date in YYYY-MM-DD format")
+    reference_number: Optional[str] = Field(default=None, description="Optional loan account/reference number")
+    description: Optional[str] = Field(default=None, description="Optional notes or terms")
+
+
+class BankLoanRepaymentCreate(BaseModel):
+    """Payload to record a repayment on an active bank loan."""
+
+    payment_date: Optional[str] = Field(default=None, description="Repayment date in YYYY-MM-DD format")
+    principal_amount: float = Field(..., ge=0, description="Principal amount to repay")
+    interest_amount: float = Field(default=0.0, ge=0, description="Interest amount paid, if applicable")
+    description: Optional[str] = Field(default=None, description="Optional repayment notes")
+
+
+class BankLoanRepaymentResponse(BaseModel):
+    """Response payload for a single bank loan repayment."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Repayment identifier")
+    bank_loan_id: int = Field(..., description="Associated bank loan ID")
+    bank_name: Optional[str] = Field(default=None, description="Bank name")
+    user_id: int = Field(..., description="User who recorded the payment")
+    user_name: Optional[str] = Field(default=None, description="User display name")
+    payment_date: str = Field(..., description="Repayment date")
+    principal_amount: float = Field(..., description="Principal amount paid")
+    interest_amount: float = Field(..., description="Interest amount paid")
+    total_payment: float = Field(..., description="Total cash disbursed (principal + interest)")
+    description: Optional[str] = Field(default=None, description="Notes")
+    status: str = Field(..., description="Repayment status ('active' or 'voided')")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+
+class BankLoanResponse(BaseModel):
+    """Response payload for a bank loan with live balance calculations."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Loan identifier")
+    user_id: int = Field(..., description="User who recorded the loan")
+    user_name: Optional[str] = Field(default=None, description="User display name")
+    bank_name: str = Field(..., description="Bank name")
+    loan_amount: float = Field(..., description="Original borrowed amount")
+    disbursal_date: str = Field(..., description="Disbursal date")
+    reference_number: Optional[str] = Field(default=None, description="Reference/account number")
+    description: Optional[str] = Field(default=None, description="Notes")
+    status: str = Field(..., description="Loan status ('active', 'voided', 'closed')")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    total_principal_repaid: float = Field(0.0, description="Sum of active principal repayments")
+    total_interest_paid: float = Field(0.0, description="Sum of active interest payments")
+    remaining_balance: float = Field(0.0, description="Remaining principal debt owed")
+
+
+class BankLoansOverviewResponse(BaseModel):
+    """Overview summary and list of bank loans."""
+
+    total_borrowed: float = Field(0.0, description="Total borrowed across all active bank loans")
+    total_principal_repaid: float = Field(0.0, description="Total principal repaid")
+    total_interest_paid: float = Field(0.0, description="Total interest paid")
+    total_outstanding: float = Field(0.0, description="Total net outstanding bank debt")
+    loans: List[BankLoanResponse] = Field(default_factory=list, description="List of bank loans")
+
+
 
 
 

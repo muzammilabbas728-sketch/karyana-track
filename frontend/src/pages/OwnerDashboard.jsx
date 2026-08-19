@@ -15,6 +15,7 @@ import {
   createSupplier,
   getSupplierHistory,
   createSupplierPayment,
+  getCashSummary,
 } from "../api/client";
 import { colors, fonts, styles } from "../theme";
 
@@ -58,8 +59,9 @@ function calculateUnitAwareInvestment(prods) {
   }, 0);
 }
 
-export default function OwnerDashboard() {
+export default function OwnerDashboard({ onNavigateToCash }) {
   const [dailyReport, setDailyReport] = useState(null);
+  const [cashSummary, setCashSummary] = useState(null);
   const [lowStock, setLowStock] = useState([]);
   const [products, setProducts] = useState([]);
   const [fromDate, setFromDate] = useState(
@@ -70,6 +72,7 @@ export default function OwnerDashboard() {
   const [productBreakdown, setProductBreakdown] = useState([]);
   
   // Inventory Purchase & Total Investment state
+  const [showTotalInvestment, setShowTotalInvestment] = useState(false);
   const [totalInventoryInvestment, setTotalInventoryInvestment] = useState(0);
   const [purchases, setPurchases] = useState([]);
   const [showAddPurchase, setShowAddPurchase] = useState(false);
@@ -85,6 +88,7 @@ export default function OwnerDashboard() {
   const [purchaseSuccess, setPurchaseSuccess] = useState(null);
 
   // Supplier Khata state
+  const [showSupplierKhataSummary, setShowSupplierKhataSummary] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
@@ -102,15 +106,17 @@ export default function OwnerDashboard() {
     setError(null);
 
     try {
-      const [daily, low, pData, prodsData, suppsData] = await Promise.all([
+      const [daily, low, pData, prodsData, suppsData, cData] = await Promise.all([
         getDailyReport(),
         getLowStock(),
         getPurchases(),
         getProducts(),
         getSuppliers(),
+        getCashSummary(),
       ]);
       setDailyReport(daily);
       setLowStock(low);
+      setCashSummary(cData);
       const loadedProds = Array.isArray(prodsData) ? prodsData : [];
       setProducts(loadedProds);
       setSuppliers(Array.isArray(suppsData) ? suppsData : []);
@@ -269,7 +275,7 @@ export default function OwnerDashboard() {
             units_per_pack: unitsPerPack,
             cost_price: Number(item.cost_price),
             selling_price: Number(item.selling_price),
-            quantity_in_stock: convertedQty,
+            quantity_in_stock: 0,
             low_stock_threshold: convertedThreshold,
           };
 
@@ -281,8 +287,8 @@ export default function OwnerDashboard() {
           product_id: Number(targetProductId),
           quantity: Number(item.quantity),
           cost_price: Number(item.cost_price),
-          is_new_product: isNewProduct,
-          skip_stock_increment: isNewProduct,
+          is_new_product: false,
+          skip_stock_increment: false,
         });
       }
 
@@ -504,7 +510,27 @@ export default function OwnerDashboard() {
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
         }}
       >
-        <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", marginBottom: "1rem" }}>Today's Summary</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", margin: 0 }}>Today's Summary</h2>
+          <button
+            type="button"
+            onClick={() => setShowTotalInvestment((curr) => !curr)}
+            style={{
+              ...styles.buttonSecondary,
+              padding: "0.35rem 0.75rem",
+              fontSize: "0.85rem",
+            }}
+          >
+            {showTotalInvestment ? "Hide Investment" : "Show Investment"}
+          </button>
+        </div>
         {loading ? (
           <p>Loading summary...</p>
         ) : (
@@ -515,9 +541,63 @@ export default function OwnerDashboard() {
                 ...styles.cardAccent(colors.primary),
               }}
             >
-              <strong>Total Investment (Inventory Purchased)</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <strong>Business Cash Balance</strong>
+                {onNavigateToCash ? (
+                  <button
+                    type="button"
+                    onClick={onNavigateToCash}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: colors.primary,
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Manage Cash →
+                  </button>
+                ) : null}
+              </div>
+              <div
+                style={{
+                  fontSize: "1.3rem",
+                  fontWeight: 700,
+                  marginTop: "0.25rem",
+                  color: (cashSummary?.current_balance ?? 0) >= 0 ? colors.ink : colors.danger,
+                }}
+              >
+                Rs. {(cashSummary?.current_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "0.8rem", color: colors.muted, marginTop: "0.25rem" }}>
+                In: +Rs. {(cashSummary?.total_money_in ?? 0).toFixed(2)} · Out: -Rs. {(cashSummary?.total_money_out ?? 0).toFixed(2)}
+              </div>
+            </div>
+
+            {showTotalInvestment ? (
+              <div
+                style={{
+                  padding: "1rem",
+                  ...styles.cardAccent(colors.primary),
+                }}
+              >
+                <strong>Total Investment (Inventory Purchased)</strong>
+                <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
+                  Rs. {totalInventoryInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            ) : null}
+            <div
+              style={{
+                padding: "1rem",
+                ...styles.cardAccent(colors.primary),
+              }}
+            >
+              <strong>Remaining Stock Cost (Current Stock Value)</strong>
               <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
-                Rs. {totalInventoryInvestment.toFixed(2)}
+                Rs. {calculateUnitAwareInvestment(products).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             <div
@@ -661,7 +741,6 @@ export default function OwnerDashboard() {
         ) : null}
       </section>
 
-      {/* Supplier Khata Summary */}
       <section
         style={{
           ...styles.card,
@@ -669,345 +748,70 @@ export default function OwnerDashboard() {
           gridColumn: "1 / -1",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showSupplierKhataSummary ? "1rem" : 0 }}>
           <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", margin: 0 }}>Suppliers & Khata Summary</h2>
           <button
             type="button"
-            onClick={() => setShowAddSupplier((curr) => !curr)}
-            style={styles.buttonPrimary}
+            onClick={() => setShowSupplierKhataSummary((curr) => !curr)}
+            style={styles.buttonSecondary}
           >
-            {showAddSupplier ? "Cancel" : "+ Add Supplier"}
+            {showSupplierKhataSummary ? "Hide" : "Show"}
           </button>
         </div>
 
-        {showAddSupplier ? (
-          <form
-            onSubmit={handleAddSupplier}
-            style={{
-              display: "grid",
-              gap: "0.75rem",
-              marginBottom: "1.25rem",
-              ...styles.card,
-            }}
-          >
-            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <label style={styles.label}>
-                Supplier Name
-                <input
-                  type="text"
-                  required
-                  value={newSupplierName}
-                  onChange={(e) => setNewSupplierName(e.target.value)}
-                  placeholder="e.g. Metro Wholesale"
-                  style={{ ...styles.input, marginTop: "0.35rem" }}
-                />
-              </label>
-              <label style={styles.label}>
-                Phone (optional)
-                <input
-                  type="text"
-                  value={newSupplierPhone}
-                  onChange={(e) => setNewSupplierPhone(e.target.value)}
-                  placeholder="e.g. 03001234567"
-                  style={{ ...styles.input, marginTop: "0.35rem" }}
-                />
-              </label>
-            </div>
-            <div>
-              <button type="submit" style={styles.buttonPrimary}>
-                Save Supplier Profile
-              </button>
-            </div>
-          </form>
-        ) : null}
-
-        {suppliers.length === 0 ? (
-          <p style={{ color: colors.muted }}>No supplier records found.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
-                  <th style={styles.tableHeaderCell}>Supplier Name</th>
-                  <th style={styles.tableHeaderCell}>Phone</th>
-                  <th style={styles.tableHeaderCell}>Total Owed</th>
-                  <th style={styles.tableHeaderCell}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {suppliers.map((supp) => {
-                  const owes = supp.balance_owed > 0;
-                  return (
-                    <tr key={supp.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                      <td style={styles.tableCell}><strong>{supp.name}</strong></td>
-                      <td style={styles.tableCell}>{supp.phone || "—"}</td>
-                      <td style={styles.tableCell}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color: owes ? colors.danger : colors.muted,
-                          }}
-                        >
-                          Rs. {Number(supp.balance_owed).toFixed(2)}
-                        </span>
-                      </td>
-                      <td style={styles.tableCell}>
-                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                          <button
-                            type="button"
-                            onClick={() => openSupplierHistory(supp.id)}
-                            style={styles.buttonSecondary}
-                          >
-                            History
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setError(null);
-                              setPaymentSupplierId(supp.id);
-                              setSupplierPaymentAmount("");
-                            }}
-                            style={styles.buttonSecondary}
-                          >
-                            Record Payment
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {paymentSupplierId !== null ? (
-          <div style={{ marginTop: "1rem", ...styles.card }}>
-            <h3 style={{ ...styles.pageTitle, fontSize: "1.1rem", marginTop: 0 }}>
-              Record Payment to {selectedPaymentSupplier ? selectedPaymentSupplier.name : "Supplier"}
-            </h3>
-            <form onSubmit={handleSupplierPaymentSubmit} style={{ display: "grid", gap: "0.75rem", maxWidth: "300px" }}>
-              <label style={styles.label}>
-                Payment Amount (Rs.)
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={supplierPaymentAmount}
-                  onChange={(e) => setSupplierPaymentAmount(e.target.value)}
-                  style={{ ...styles.input, marginTop: "0.35rem" }}
-                />
-              </label>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button type="submit" style={styles.buttonPrimary}>
-                  Save Payment
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentSupplierId(null)}
-                  style={styles.buttonSecondary}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
-
-        {historySupplierId !== null ? (
-          <div style={{ marginTop: "1rem", ...styles.card }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-              <h3 style={{ ...styles.pageTitle, fontSize: "1.1rem", margin: 0 }}>
-                Supplier Statement: {selectedHistorySupplier ? selectedHistorySupplier.name : ""}
-              </h3>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!selectedHistorySupplier) return;
-                    try {
-                      const totalPurchases = supplierHistoryItems
-                        .filter((i) => i.type === "purchase")
-                        .reduce((sum, i) => sum + Number(i.total_cost || 0), 0);
-
-                      const totalPaid = supplierHistoryItems
-                        .filter((i) => i.type === "payment")
-                        .reduce((sum, i) => sum + Number(i.amount || 0), 0) +
-                        supplierHistoryItems
-                          .filter((i) => i.type === "purchase")
-                          .reduce((sum, i) => sum + Number(i.amount_paid || 0), 0);
-
-                      const remainingOwed = Number(selectedHistorySupplier.balance_owed || 0);
-                      const reportDate = new Date().toLocaleString();
-
-                      const container = document.createElement("div");
-                      container.style.padding = "24px";
-                      container.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-                      container.style.color = "#1C1917";
-                      container.style.backgroundColor = "#FFFFFF";
-
-                      const rowsHtml = supplierHistoryItems
-                        .map((item) => {
-                          const isPurchase = item.type === "purchase";
-                          const typeLabel = isPurchase ? `Purchase (${item.payment_status})` : "Supplier Payment";
-                          const typeColor = isPurchase ? "#B42318" : "#2F6844";
-                          let itemsListHtml = "";
-
-                          if (isPurchase && item.items && item.items.length > 0) {
-                            const listItems = item.items
-                              .map(
-                                (p) =>
-                                  `<li style="margin-bottom: 2px;">${p.product_name} — ${p.quantity} x Rs. ${p.cost_price} = <strong>Rs. ${p.total_cost}</strong></li>`
-                              )
-                              .join("");
-                            itemsListHtml = `<ul style="margin: 4px 0 0 16px; padding: 0; font-size: 11px; color: #555; list-style-type: disc;">${listItems}</ul>`;
-                          }
-
-                          return `
-                            <tr style="border-bottom: 1px solid #E7E4DD;">
-                              <td style="padding: 8px; vertical-align: top;">
-                                <strong style="color: ${typeColor};">${typeLabel}</strong>
-                              </td>
-                              <td style="padding: 8px; vertical-align: top; font-weight: 600; color: ${typeColor};">
-                                Rs. ${isPurchase ? item.total_cost : item.amount}
-                                ${isPurchase && item.amount_paid > 0 ? `<div style="font-size: 11px; color: #666;">Paid upfront: Rs. ${item.amount_paid}</div>` : ""}
-                                ${itemsListHtml}
-                              </td>
-                              <td style="padding: 8px; vertical-align: top; color: #333; font-size: 12px;">
-                                ${formatDateTime(item.created_at)}
-                              </td>
-                            </tr>
-                          `;
-                        })
-                        .join("");
-
-                      container.innerHTML = `
-                        <div style="max-width: 750px; margin: 0 auto; background: #ffffff; border: 1px solid #E7E4DD; border-radius: 12px; padding: 24px;">
-                          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2F6844; padding-bottom: 12px; margin-bottom: 20px;">
-                            <div>
-                              <h1 style="font-size: 22px; font-weight: 700; color: #2F6844; margin: 0;">Karyana Track</h1>
-                              <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #6B6459; margin-top: 4px;">Supplier Statement / Khata History</div>
-                            </div>
-                            <div style="text-align: right; font-size: 12px; color: #6B6459;">
-                              <div><strong>Statement Date:</strong> ${reportDate}</div>
-                            </div>
-                          </div>
-
-                          <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; background: #FAFAF8; padding: 12px 16px; border-radius: 8px; border: 1px solid #E7E4DD; font-size: 13px;">
-                            <div>
-                              <div><strong>Supplier Name:</strong> ${selectedHistorySupplier.name}</div>
-                              <div style="margin-top: 4px;"><strong>Supplier ID:</strong> #${selectedHistorySupplier.id}</div>
-                            </div>
-                            <div>
-                              <div><strong>Phone:</strong> ${selectedHistorySupplier.phone || "—"}</div>
-                            </div>
-                          </div>
-
-                          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
-                            <div style="padding: 12px; border-radius: 8px; border: 1px solid #E7E4DD; background: #FAFAF8; text-align: center;">
-                              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Total Purchases</div>
-                              <div style="font-size: 18px; font-weight: 700; color: #B42318;">Rs. ${totalPurchases.toFixed(2)}</div>
-                            </div>
-                            <div style="padding: 12px; border-radius: 8px; border: 1px solid #E7E4DD; background: #FAFAF8; text-align: center;">
-                              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Total Paid</div>
-                              <div style="font-size: 18px; font-weight: 700; color: #2F6844;">Rs. ${totalPaid.toFixed(2)}</div>
-                            </div>
-                            <div style="padding: 12px; border-radius: 8px; border: 1px solid #F87171; background: #FDF2F2; text-align: center;">
-                              <div style="font-size: 11px; text-transform: uppercase; color: #6B6459; margin-bottom: 4px;">Balance Owed</div>
-                              <div style="font-size: 18px; font-weight: 700; color: #B42318;">Rs. ${remainingOwed.toFixed(2)}</div>
-                            </div>
-                          </div>
-
-                          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-                            <thead>
-                              <tr style="border-bottom: 2px solid #E7E4DD; text-align: left; font-size: 11px; text-transform: uppercase; color: #6B6459;">
-                                <th style="padding: 8px; width: 30%;">Transaction Type</th>
-                                <th style="padding: 8px; width: 45%;">Amount & Details</th>
-                                <th style="padding: 8px; width: 25%;">Date & Time</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              ${rowsHtml || '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #666;">No transaction history.</td></tr>'}
-                            </tbody>
-                          </table>
-
-                          <div style="margin-top: 32px; padding-top: 12px; border-top: 1px solid #E7E4DD; display: flex; justify-content: space-between; font-size: 11px; color: #6B6459;">
-                            <div>Karyana Track Supplier Khata Record</div>
-                            <div>Authorized Signature: _______________________</div>
-                          </div>
-                        </div>
-                      `;
-
-                      const safeName = selectedHistorySupplier.name.replace(/[^a-zA-Z0-9]/g, "_");
-                      const opt = {
-                        margin: [10, 10, 10, 10],
-                        filename: `Supplier_Statement_${safeName}.pdf`,
-                        image: { type: "jpeg", quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, logging: false },
-                        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-                      };
-
-                      await html2pdf().set(opt).from(container).save();
-                      setPurchaseSuccess(`Supplier statement PDF downloaded: Supplier_Statement_${safeName}.pdf`);
-                    } catch (err) {
-                      setError(err.message || "Failed to download PDF statement");
-                    }
-                  }}
-                  style={styles.buttonPrimary}
-                >
-                  Download Statement PDF
-                </button>
-                <button type="button" onClick={closeSupplierHistory} style={styles.buttonSecondary}>
-                  Close
-                </button>
-              </div>
-            </div>
-            {supplierHistoryItems.length === 0 ? (
-              <p style={{ color: colors.muted }}>No purchase or payment history found.</p>
+        {showSupplierKhataSummary ? (
+          <>
+            {suppliers.length === 0 ? (
+              <p style={{ color: colors.muted }}>No supplier records found.</p>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
-                      <th style={styles.tableHeaderCell}>Transaction</th>
-                      <th style={styles.tableHeaderCell}>Amount & Details</th>
-                      <th style={styles.tableHeaderCell}>Date</th>
+                      <th style={styles.tableHeaderCell}>Supplier Name</th>
+                      <th style={styles.tableHeaderCell}>Phone</th>
+                      <th style={styles.tableHeaderCell}>Total Owed</th>
+                      <th style={styles.tableHeaderCell}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {supplierHistoryItems.map((item, index) => {
-                      const isPurchase = item.type === "purchase";
+                    {suppliers.map((supp) => {
+                      const owes = supp.balance_owed > 0;
                       return (
-                        <tr key={`${item.type}-${item.id}-${index}`} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                        <tr key={supp.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                          <td style={styles.tableCell}><strong>{supp.name}</strong></td>
+                          <td style={styles.tableCell}>{supp.phone || "—"}</td>
                           <td style={styles.tableCell}>
                             <span
                               style={{
                                 fontWeight: 600,
-                                color: isPurchase ? colors.danger : colors.primary,
-                                textTransform: "capitalize",
+                                color: owes ? colors.danger : colors.muted,
                               }}
                             >
-                              {isPurchase ? `Purchase (${item.payment_status})` : "Supplier Payment"}
+                              Rs. {Number(supp.balance_owed).toFixed(2)}
                             </span>
                           </td>
-                          <td style={{ ...styles.tableCell, fontWeight: 600, color: isPurchase ? colors.danger : colors.primary }}>
-                            Rs. {isPurchase ? item.total_cost : item.amount}
-                            {isPurchase && item.amount_paid > 0 ? (
-                              <span style={{ fontSize: "0.85rem", fontWeight: 400, color: colors.muted, marginLeft: "0.5rem" }}>
-                                (Paid: Rs. {item.amount_paid})
-                              </span>
-                            ) : null}
-                            {isPurchase && item.items && item.items.length > 0 ? (
-                              <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1rem", fontSize: "0.8rem", fontWeight: 400, color: colors.muted }}>
-                                {item.items.map((p, i) => (
-                                  <li key={i}>{p.product_name} — {p.quantity} x Rs. {p.cost_price} = Rs. {p.total_cost}</li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </td>
                           <td style={styles.tableCell}>
-                            {formatDateTime(item.created_at)}
+                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => openSupplierHistory(supp.id)}
+                                style={styles.buttonSecondary}
+                              >
+                                History
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setError(null);
+                                  setPaymentSupplierId(supp.id);
+                                  setSupplierPaymentAmount("");
+                                }}
+                                style={styles.buttonSecondary}
+                              >
+                                Record Payment
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1016,7 +820,207 @@ export default function OwnerDashboard() {
                 </table>
               </div>
             )}
-          </div>
+
+            {paymentSupplierId !== null ? (
+              <div style={{ marginTop: "1rem", ...styles.card }}>
+                <h3 style={{ ...styles.pageTitle, fontSize: "1.1rem", marginTop: 0 }}>
+                  Record Payment to {selectedPaymentSupplier ? selectedPaymentSupplier.name : "Supplier"}
+                </h3>
+                <form onSubmit={handleSupplierPaymentSubmit} style={{ display: "grid", gap: "0.75rem", maxWidth: "300px" }}>
+                  <label style={styles.label}>
+                    Payment Amount (Rs.)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={supplierPaymentAmount}
+                      onChange={(e) => setSupplierPaymentAmount(e.target.value)}
+                      style={{ ...styles.input, marginTop: "0.35rem" }}
+                    />
+                  </label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button type="submit" style={styles.buttonPrimary}>
+                      Save Payment
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentSupplierId(null)}
+                      style={styles.buttonSecondary}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : null}
+
+            {historySupplierId !== null ? (
+              <div style={{ marginTop: "1rem", ...styles.card }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                  <h3 style={{ ...styles.pageTitle, fontSize: "1.1rem", margin: 0 }}>
+                    Supplier Statement: {selectedHistorySupplier ? selectedHistorySupplier.name : ""}
+                  </h3>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!selectedHistorySupplier) return;
+                        try {
+                          const totalPurchases = supplierHistoryItems
+                            .filter((i) => i.type === "purchase")
+                            .reduce((sum, i) => sum + Number(i.total_cost || 0), 0);
+                          const totalPayments = supplierHistoryItems
+                            .filter((i) => i.type === "payment")
+                            .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+                          const balance = totalPurchases - totalPayments;
+
+                          const rowsHtml = supplierHistoryItems
+                            .map((item, idx) => {
+                              const isP = item.type === "purchase";
+                              const typeStr = isP ? `Purchase (${item.payment_status})` : "Supplier Payment";
+                              const amtStr = `Rs. ${isP ? item.total_cost : item.amount}`;
+                              const dateStr = formatDateTime(item.created_at);
+
+                              let itemsSubList = "";
+                              if (isP && item.items && item.items.length > 0) {
+                                itemsSubList = `<div style="font-size: 11px; color: #666; margin-top: 2px;">Items: ${item.items.map((p) => `${p.product_name} (${p.quantity} x Rs.${p.cost_price})`).join(", ")}</div>`;
+                              }
+
+                              return `
+                                <tr style="border-bottom: 1px solid #E7E4DD; ${idx % 2 === 1 ? "background: #FAFAFA;" : ""}">
+                                  <td style="padding: 8px 10px;">${typeStr}${itemsSubList}</td>
+                                  <td style="padding: 8px 10px; font-weight: 600; color: ${isP ? "#D32F2F" : "#2E7D32"};">${amtStr}</td>
+                                  <td style="padding: 8px 10px; font-size: 12px; color: #666;">${dateStr}</td>
+                                </tr>
+                              `;
+                            })
+                            .join("");
+
+                          const container = document.createElement("div");
+                          container.style.padding = "24px";
+                          container.style.fontFamily = "'IBM Plex Sans', sans-serif";
+                          container.style.color = "#1F1E1B";
+                          container.innerHTML = `
+                            <div>
+                              <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1F1E1B; padding-bottom: 12px; margin-bottom: 16px;">
+                                <div>
+                                  <h1 style="margin: 0; font-size: 22px; font-family: 'Fraunces', serif;">Karyana Track</h1>
+                                  <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #6B6459; margin-top: 4px;">Supplier Statement / Khata History</div>
+                                </div>
+                                <div style="text-align: right; font-size: 12px; color: #6B6459;">
+                                  <div>Date: ${new Date().toLocaleDateString()}</div>
+                                </div>
+                              </div>
+
+                              <div style="margin-bottom: 16px; font-size: 14px; background: #F7F6F3; padding: 12px; border-radius: 6px;">
+                                <div><strong>Supplier:</strong> ${selectedHistorySupplier.name}</div>
+                                ${selectedHistorySupplier.phone ? `<div><strong>Phone:</strong> ${selectedHistorySupplier.phone}</div>` : ""}
+                                <div style="margin-top: 6px; font-weight: 600; color: ${balance > 0 ? "#D32F2F" : "#2E7D32"};">
+                                  Current Balance Owed: Rs. ${balance.toFixed(2)}
+                                </div>
+                              </div>
+
+                              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                  <tr style="background: #E7E4DD; text-align: left;">
+                                    <th style="padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #6B6459;">Transaction</th>
+                                    <th style="padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #6B6459;">Amount</th>
+                                    <th style="padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #6B6459;">Date</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${rowsHtml || '<tr><td colspan="3" style="padding: 16px; text-align: center; color: #666;">No transaction history.</td></tr>'}
+                                </tbody>
+                              </table>
+
+                              <div style="margin-top: 32px; padding-top: 12px; border-top: 1px solid #E7E4DD; display: flex; justify-content: space-between; font-size: 11px; color: #6B6459;">
+                                <div>Karyana Track Supplier Khata Record</div>
+                                <div>Authorized Signature: _______________________</div>
+                              </div>
+                            </div>
+                          `;
+
+                          const safeName = selectedHistorySupplier.name.replace(/[^a-zA-Z0-9]/g, "_");
+                          const opt = {
+                            margin: [10, 10, 10, 10],
+                            filename: `Supplier_Statement_${safeName}.pdf`,
+                            image: { type: "jpeg", quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, logging: false },
+                            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+                          };
+
+                          await html2pdf().set(opt).from(container).save();
+                          setPurchaseSuccess(`Supplier statement PDF downloaded: Supplier_Statement_${safeName}.pdf`);
+                        } catch (err) {
+                          setError(err.message || "Failed to download PDF statement");
+                        }
+                      }}
+                      style={styles.buttonPrimary}
+                    >
+                      Download Statement PDF
+                    </button>
+                    <button type="button" onClick={closeSupplierHistory} style={styles.buttonSecondary}>
+                      Close
+                    </button>
+                  </div>
+                </div>
+                {supplierHistoryItems.length === 0 ? (
+                  <p style={{ color: colors.muted }}>No purchase or payment history found.</p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ textAlign: "left", borderBottom: `1px solid ${colors.border}` }}>
+                          <th style={styles.tableHeaderCell}>Transaction</th>
+                          <th style={styles.tableHeaderCell}>Amount & Details</th>
+                          <th style={styles.tableHeaderCell}>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supplierHistoryItems.map((item, index) => {
+                          const isPurchase = item.type === "purchase";
+                          return (
+                            <tr key={`${item.type}-${item.id}-${index}`} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                              <td style={styles.tableCell}>
+                                <span
+                                  style={{
+                                    fontWeight: 600,
+                                    color: isPurchase ? colors.danger : colors.primary,
+                                    textTransform: "capitalize",
+                                  }}
+                                >
+                                  {isPurchase ? `Purchase (${item.payment_status})` : "Supplier Payment"}
+                                </span>
+                              </td>
+                              <td style={{ ...styles.tableCell, fontWeight: 600, color: isPurchase ? colors.danger : colors.primary }}>
+                                Rs. {isPurchase ? item.total_cost : item.amount}
+                                {isPurchase && item.amount_paid > 0 ? (
+                                  <span style={{ fontSize: "0.85rem", fontWeight: 400, color: colors.muted, marginLeft: "0.5rem" }}>
+                                    (Paid: Rs. {item.amount_paid})
+                                  </span>
+                                ) : null}
+                                {isPurchase && item.items && item.items.length > 0 ? (
+                                  <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1rem", fontSize: "0.8rem", fontWeight: 400, color: colors.muted }}>
+                                    {item.items.map((p, i) => (
+                                      <li key={i}>{p.product_name} — {p.quantity} x Rs. {p.cost_price} = Rs. {p.total_cost}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                              </td>
+                              <td style={styles.tableCell}>
+                                {formatDateTime(item.created_at)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </>
         ) : null}
       </section>
 

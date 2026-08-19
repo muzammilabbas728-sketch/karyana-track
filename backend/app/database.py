@@ -16,13 +16,19 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = os.getenv("DATABASE_PATH", str(_BASE_DIR / "karyana_track.db"))
 
 
-def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
+def get_db_path() -> str:
+    return os.getenv("DATABASE_PATH", str(_BASE_DIR / "karyana_track.db"))
+
+
+def get_connection(db_path: str = None) -> sqlite3.Connection:
     """
     Create and return a new SQLite connection with sensible defaults.
 
     - Enables foreign-key enforcement (off by default in SQLite).
     - Uses Row factory so rows behave like dicts.
     """
+    if db_path is None:
+        db_path = get_db_path()
     conn = sqlite3.connect(db_path, timeout=5.0, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -111,11 +117,79 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS license (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name    TEXT NOT NULL,
+            device_fingerprint TEXT NOT NULL UNIQUE,
+            license_key      TEXT NOT NULL,
+            issued_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at       TIMESTAMP
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cash_transactions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL,
+            type        TEXT NOT NULL CHECK (type IN (
+                            'owner_investment',
+                            'owner_withdrawal',
+                            'loan_given',
+                            'loan_repayment',
+                            'other_income',
+                            'other_expense'
+                        )),
+            amount      REAL NOT NULL CHECK (amount > 0),
+            description TEXT,
+            date        DATE NOT NULL,
+            status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided')),
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bank_loans (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id          INTEGER NOT NULL,
+            bank_name        TEXT NOT NULL,
+            loan_amount      REAL NOT NULL CHECK (loan_amount > 0),
+            disbursal_date   DATE NOT NULL,
+            reference_number TEXT,
+            description      TEXT,
+            status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided', 'closed')),
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bank_loan_repayments (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_loan_id     INTEGER NOT NULL,
+            user_id          INTEGER NOT NULL,
+            payment_date     DATE NOT NULL,
+            principal_amount REAL NOT NULL CHECK (principal_amount >= 0),
+            interest_amount  REAL NOT NULL DEFAULT 0.0 CHECK (interest_amount >= 0),
+            total_payment    REAL NOT NULL CHECK (total_payment > 0),
+            description      TEXT,
+            status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided')),
+            created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (bank_loan_id) REFERENCES bank_loans(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
 
 
 
 @contextmanager
-def transaction(db_path: str = DB_PATH):
+def transaction(db_path: str = None):
     """
     Context manager that wraps a database transaction.
 
@@ -127,6 +201,8 @@ def transaction(db_path: str = DB_PATH):
     On any exception the transaction is rolled back and the exception
     is re-raised.  The connection is always closed on exit.
     """
+    if db_path is None:
+        db_path = get_db_path()
     conn = get_connection(db_path)
     cursor = conn.cursor()
     try:
@@ -141,13 +217,15 @@ def transaction(db_path: str = DB_PATH):
         conn.close()
 
 
-def init_db(db_path: str = DB_PATH) -> None:
+def init_db(db_path: str = None) -> None:
     """
     Initialise the database by executing schema.sql.
 
     Safe to call multiple times — schema.sql uses CREATE TABLE IF NOT EXISTS
     and CREATE INDEX IF NOT EXISTS for idempotent execution.
     """
+    if db_path is None:
+        db_path = get_db_path()
     schema_file = Path(__file__).resolve().parent / "schema.sql"
     schema_sql = schema_file.read_text(encoding="utf-8")
 

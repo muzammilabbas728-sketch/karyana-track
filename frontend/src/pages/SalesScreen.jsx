@@ -259,6 +259,7 @@ export default function SalesScreen() {
         display: "flex",
         gap: "1rem",
         alignItems: "flex-start",
+        height: "100%",
       }}
     >
       <section
@@ -266,6 +267,8 @@ export default function SalesScreen() {
           flex: 2,
           ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+          maxHeight: "calc(100vh - 4rem)",
+          overflowY: "auto",
         }}
       >
         <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", marginBottom: "1rem" }}>Products</h2>
@@ -573,6 +576,10 @@ export default function SalesScreen() {
           ...styles.card,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
           minWidth: "320px",
+          position: "sticky",
+          top: "0",
+          maxHeight: "calc(100vh - 4rem)",
+          overflowY: "auto",
         }}
       >
         <h2 style={{ ...styles.pageTitle, fontSize: "1.4rem", marginBottom: "1rem" }}>Cart</h2>

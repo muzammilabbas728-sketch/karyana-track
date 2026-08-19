@@ -147,3 +147,70 @@ CREATE INDEX IF NOT EXISTS idx_inventory_purchases_user_id ON inventory_purchase
 CREATE INDEX IF NOT EXISTS idx_inventory_purchases_supplier_id ON inventory_purchases(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_supplier_payments_supplier_id ON supplier_payments(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);
+
+CREATE TABLE IF NOT EXISTS license (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_name    TEXT NOT NULL,
+    device_fingerprint TEXT NOT NULL UNIQUE,
+    license_key      TEXT NOT NULL,
+    issued_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at       TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cash_transactions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    type        TEXT NOT NULL CHECK (type IN (
+                    'owner_investment',
+                    'owner_withdrawal',
+                    'loan_given',
+                    'loan_repayment',
+                    'other_income',
+                    'other_expense'
+                )),
+    amount      REAL NOT NULL CHECK (amount > 0),
+    description TEXT,
+    date        DATE NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided')),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_transactions_user_id ON cash_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_cash_transactions_type ON cash_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_cash_transactions_date ON cash_transactions(date);
+
+CREATE TABLE IF NOT EXISTS bank_loans (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id          INTEGER NOT NULL,
+    bank_name        TEXT NOT NULL,
+    loan_amount      REAL NOT NULL CHECK (loan_amount > 0),
+    disbursal_date   DATE NOT NULL,
+    reference_number TEXT,
+    description      TEXT,
+    status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided', 'closed')),
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bank_loans_user_id ON bank_loans(user_id);
+CREATE INDEX IF NOT EXISTS idx_bank_loans_status ON bank_loans(status);
+CREATE INDEX IF NOT EXISTS idx_bank_loans_date ON bank_loans(disbursal_date);
+
+CREATE TABLE IF NOT EXISTS bank_loan_repayments (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    bank_loan_id     INTEGER NOT NULL,
+    user_id          INTEGER NOT NULL,
+    payment_date     DATE NOT NULL,
+    principal_amount REAL NOT NULL CHECK (principal_amount >= 0),
+    interest_amount  REAL NOT NULL DEFAULT 0.0 CHECK (interest_amount >= 0),
+    total_payment    REAL NOT NULL CHECK (total_payment > 0),
+    description      TEXT,
+    status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided')),
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bank_loan_id) REFERENCES bank_loans(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bank_loan_repayments_loan_id ON bank_loan_repayments(bank_loan_id);
+CREATE INDEX IF NOT EXISTS idx_bank_loan_repayments_status ON bank_loan_repayments(status);

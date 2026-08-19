@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { getUsers, createUser, changeUserPin } from "../api/client";
+import {
+  getUsers,
+  createUser,
+  changeUserPin,
+  resetDemoData,
+  getBackupDownloadUrl,
+  restoreDatabase,
+} from "../api/client";
 import { colors, fonts, styles } from "../theme";
 
 const initialNewUser = {
@@ -18,6 +25,11 @@ export default function UsersPage() {
   const [newUser, setNewUser] = useState(initialNewUser);
   const [pinChangeUserId, setPinChangeUserId] = useState(null);
   const [newPin, setNewPin] = useState("");
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [selectedRestoreFile, setSelectedRestoreFile] = useState(null);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
 
   useEffect(() => {
     async function loadUsers() {
@@ -95,6 +107,71 @@ export default function UsersPage() {
       setNewPin("");
     } catch (err) {
       setError(err.message || "Failed to update PIN");
+    }
+  }
+
+  async function handleRestoreDatabase(event) {
+    event.preventDefault();
+    clearMessages();
+
+    if (!selectedRestoreFile) {
+      setError("Please select a SQLite backup file (.db) to restore.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "WARNING: Restoring will overwrite ALL current database data (products, sales, customers, suppliers, settings) with the contents of this backup file.\n\nThis action cannot be undone.\n\nAre you sure you want to proceed?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRestoreLoading(true);
+    try {
+      const response = await restoreDatabase(selectedRestoreFile);
+      setSuccessMessage(
+        response?.detail ||
+          "Database restored successfully. Please restart the backend server manually for changes to take effect."
+      );
+      setSelectedRestoreFile(null);
+      setFileInputKey(Date.now());
+    } catch (err) {
+      setError(err.message || "Failed to restore database backup.");
+    } finally {
+      setRestoreLoading(false);
+    }
+  }
+
+  async function handleResetData(event) {
+    event.preventDefault();
+    clearMessages();
+
+    if (resetConfirmText !== "RESET") {
+      setError("You must type RESET to confirm demo data deletion.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you absolutely sure you want to delete all demo data?\n\nThis will permanently delete all products, sales, customers, suppliers, purchases, investments, and stock adjustments. User accounts will be preserved.\n\nClick OK to confirm deletion."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await resetDemoData();
+      setSuccessMessage(response?.detail || "All business data has been reset. User accounts were preserved.");
+      setResetConfirmText("");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      setError(err.message || "Failed to reset demo data.");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -291,6 +368,125 @@ export default function UsersPage() {
           </form>
         </div>
       ) : null}
+
+      <div
+        style={{
+          marginTop: "2rem",
+          ...styles.cardAccent(colors.danger),
+        }}
+      >
+        <h3 style={{ ...styles.pageTitle, fontSize: "1.2rem", color: colors.danger, marginTop: 0 }}>
+          Danger Zone
+        </h3>
+
+        {/* Database Backup & Restore Section */}
+        <div style={{ marginBottom: "2rem", borderBottom: `1px solid ${colors.border}`, paddingBottom: "1.5rem" }}>
+          <h4 style={{ ...styles.pageTitle, fontSize: "1.05rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+            Database Backup & Restore
+          </h4>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <p style={{ fontFamily: fonts.body, fontSize: "0.9rem", color: colors.ink, marginBottom: "0.75rem" }}>
+              Download a complete snapshot of your current database (<code style={{ background: colors.bg, padding: "0.15rem 0.35rem", borderRadius: "4px" }}>karyana_track.db</code>) to keep a secure offline copy.
+            </p>
+            <a
+              href={getBackupDownloadUrl()}
+              download
+              style={{
+                ...styles.buttonSecondary,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                textDecoration: "none",
+                fontWeight: 600,
+              }}
+            >
+              📥 Download Backup (.db)
+            </a>
+          </div>
+
+          <div
+            style={{
+              padding: "1rem",
+              background: "rgba(220, 38, 38, 0.05)",
+              border: `1px solid rgba(220, 38, 38, 0.2)`,
+              borderRadius: "8px",
+            }}
+          >
+            <h5 style={{ ...styles.pageTitle, fontSize: "0.95rem", color: colors.danger, margin: "0 0 0.4rem 0" }}>
+              Restore from Backup
+            </h5>
+            <p style={{ fontFamily: fonts.body, fontSize: "0.85rem", color: colors.ink, marginBottom: "0.75rem" }}>
+              <strong style={{ color: colors.danger }}>Warning:</strong> Restoring will overwrite <strong>ALL</strong> current data with the uploaded file. You must restart the backend server after restoring.
+            </p>
+            <form onSubmit={handleRestoreDatabase} style={{ display: "grid", gap: "0.75rem", maxWidth: "450px" }}>
+              <input
+                key={fileInputKey}
+                type="file"
+                accept=".db,application/x-sqlite3,application/vnd.sqlite3"
+                onChange={(e) => setSelectedRestoreFile(e.target.files?.[0] || null)}
+                style={{
+                  ...styles.input,
+                  padding: "0.4rem",
+                  fontSize: "0.85rem",
+                }}
+              />
+              <div>
+                <button
+                  type="submit"
+                  disabled={!selectedRestoreFile || restoreLoading}
+                  style={{
+                    ...styles.buttonDanger,
+                    opacity: selectedRestoreFile && !restoreLoading ? 1 : 0.5,
+                    cursor: selectedRestoreFile && !restoreLoading ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {restoreLoading ? "Restoring..." : "Restore Database"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Reset Demo Data Section */}
+        <div>
+          <h4 style={{ ...styles.pageTitle, fontSize: "1.05rem", marginTop: 0, marginBottom: "0.5rem" }}>
+            Reset Demo Data
+          </h4>
+          <p style={{ fontFamily: fonts.body, fontSize: "0.9rem", color: colors.ink, marginBottom: "1rem" }}>
+            Resetting demo data will permanently delete all business data (products, sales, customers, suppliers, purchases, investments, stock adjustments). User accounts will be preserved.
+          </p>
+          <form onSubmit={handleResetData} style={{ display: "grid", gap: "0.75rem", maxWidth: "400px" }}>
+            <label style={styles.label}>
+              Type <strong style={{ color: colors.ink }}>RESET</strong> to confirm:
+              <input
+                type="text"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder="RESET"
+                style={{
+                  ...styles.input,
+                  marginTop: "0.35rem",
+                }}
+              />
+            </label>
+            <div>
+              <button
+                type="submit"
+                disabled={resetConfirmText !== "RESET" || resetLoading}
+                style={{
+                  ...styles.buttonDanger,
+                  opacity: resetConfirmText === "RESET" && !resetLoading ? 1 : 0.5,
+                  cursor: resetConfirmText === "RESET" && !resetLoading ? "pointer" : "not-allowed",
+                }}
+              >
+                {resetLoading ? "Resetting..." : "Reset All Demo Data"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </section>
   );
 }
+

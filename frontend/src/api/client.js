@@ -251,8 +251,125 @@ export function createSupplierPayment(supplierId, amount) {
   });
 }
 
+export function resetDemoData() {
+  return apiRequest("/admin/reset-data", {
+    method: "POST",
+  });
+}
 
+export function getLicenseStatus() {
+  return fetch(`${BASE_URL}/license`).then((r) => r.json());
+}
 
+export function activateLicense(licenseKey, customerName) {
+  return fetch(`${BASE_URL}/license/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ license_key: licenseKey, customer_name: customerName }),
+  }).then(async (r) => {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Activation failed");
+    return data;
+  });
+}
 
+export function getCashSummary() {
+  return apiRequest("/cash/summary", {
+    method: "GET",
+  });
+}
 
+export function getCashTransactions(params = {}) {
+  const query = new URLSearchParams();
+  if (params.type) query.append("type", params.type);
+  if (params.from_date) query.append("from_date", params.from_date);
+  if (params.to_date) query.append("to_date", params.to_date);
+  const qStr = query.toString();
+  return apiRequest(`/cash/transactions${qStr ? `?${qStr}` : ""}`, {
+    method: "GET",
+  });
+}
+
+export function createCashTransaction(payload) {
+  return apiRequest("/cash/transactions", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function voidCashTransaction(transactionId) {
+  return apiRequest(`/cash/transactions/${transactionId}/void`, {
+    method: "POST",
+  });
+}
+
+export function getBankLoans() {
+  return apiRequest("/cash/bank-loans", {
+    method: "GET",
+  });
+}
+
+export function createBankLoan(payload) {
+  return apiRequest("/cash/bank-loans", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function voidBankLoan(loanId) {
+  return apiRequest(`/cash/bank-loans/${loanId}/void`, {
+    method: "POST",
+  });
+}
+
+export function getBankLoanRepayments(loanId) {
+  return apiRequest(`/cash/bank-loans/${loanId}/repayments`, {
+    method: "GET",
+  });
+}
+
+export function createBankLoanRepayment(loanId, payload) {
+  return apiRequest(`/cash/bank-loans/${loanId}/repayments`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function voidBankLoanRepayment(repaymentId) {
+  return apiRequest(`/cash/bank-loans/repayments/${repaymentId}/void`, {
+    method: "POST",
+  });
+}
+
+export function getBackupDownloadUrl() {
+  const token = localStorage.getItem("auth_token");
+  return `${BASE_URL}/admin/backup${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+}
+
+export async function restoreDatabase(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers = {};
+  const token = localStorage.getItem("auth_token");
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}/admin/restore`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    const message = data?.detail || `Restore failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
 
