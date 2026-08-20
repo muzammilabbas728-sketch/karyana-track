@@ -7,7 +7,7 @@ import uuid
 
 from .database import get_connection
 
-DEFAULT_SECRET = "CHANGE_THIS_SECRET_BEFORE_SELLING"
+DEFAULT_SECRET = "faa70297aed29aa6074c4279aecc16990d49e7b918cb8bdf19a8d905fd0e3e5e"
 
 
 def get_device_fingerprint() -> str:

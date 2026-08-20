@@ -23,3 +23,12 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+
+# Tauri/Rust build artifacts
+frontend/src-tauri/target/
+backend/dist/
+backend/build/
+*.spec
+
+karyana_track.db.template_backup

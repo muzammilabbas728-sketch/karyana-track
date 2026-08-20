@@ -409,7 +409,10 @@ export default function App() {
         {activeView === "sales-history" ? (
           <SalesHistoryPage />
         ) : activeView === "dashboard" && isOwner ? (
-          <OwnerDashboard onNavigateToCash={() => setActiveView("cash")} />
+          <OwnerDashboard
+            onNavigateToCash={() => setActiveView("cash")}
+            onNavigateToInventory={() => setActiveView("inventory")}
+          />
         ) : activeView === "cash" && isOwner ? (
           <CashManagementPage />
         ) : activeView === "suppliers" && isOwner ? (

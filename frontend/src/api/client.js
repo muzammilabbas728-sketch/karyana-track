@@ -1,5 +1,8 @@
-const BASE_URL = window.location.origin;
-
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== "undefined" && window.location.port === "8000"
+    ? window.location.origin
+    : "http://127.0.0.1:8000");
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
@@ -19,7 +22,7 @@ function buildHeaders(options) {
   return headers;
 }
 
-export async function apiRequest(path, options = {}) {
+export async function apiRequest(path, options = {}, retries = 3) {
   const url = `${BASE_URL}${path}`;
   const init = {
     method: options.method || "GET",
@@ -31,16 +34,24 @@ export async function apiRequest(path, options = {}) {
     init.body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(url, init);
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  try {
+    const response = await fetch(url, init);
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
 
-  if (!response.ok) {
-    const message = data?.detail || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    if (!response.ok) {
+      const message = data?.detail || `Request failed with status ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  } catch (err) {
+    if (retries > 0 && err instanceof TypeError) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return apiRequest(path, options, retries - 1);
+    }
+    throw err;
   }
-
-  return data;
 }
 
 export function login(username, pin) {
@@ -372,4 +383,37 @@ export async function restoreDatabase(file) {
 
   return data;
 }
+
+export function getBorrowers() {
+  return apiRequest("/cash/borrowers", {
+    method: "GET",
+  });
+}
+
+export function createBorrower(payload) {
+  return apiRequest("/cash/borrowers", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function getBorrowerHistory(borrowerId) {
+  return apiRequest(`/cash/borrowers/${borrowerId}/history`, {
+    method: "GET",
+  });
+}
+
+export function createLoanTransaction(payload) {
+  return apiRequest("/cash/borrowers/transactions", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function voidLoanTransaction(txId) {
+  return apiRequest(`/cash/borrowers/transactions/${txId}/void`, {
+    method: "POST",
+  });
+}
+
 

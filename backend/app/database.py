@@ -185,6 +185,35 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS third_party_borrowers (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL UNIQUE,
+            phone       TEXT,
+            notes       TEXT,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS third_party_loan_transactions (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            borrower_id  INTEGER NOT NULL,
+            user_id      INTEGER NOT NULL,
+            type         TEXT NOT NULL CHECK (type IN ('loan_given', 'repayment')),
+            amount       REAL NOT NULL CHECK (amount > 0),
+            date         DATE NOT NULL,
+            notes        TEXT,
+            status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'voided')),
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (borrower_id) REFERENCES third_party_borrowers(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
+
 
 
 

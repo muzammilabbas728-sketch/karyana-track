@@ -142,7 +142,7 @@ def create_purchase(
 
         for item in payload.items:
             product = cursor.execute(
-                "SELECT id, name, quantity_in_stock, cost_price FROM products WHERE id = ? AND is_active = 1",
+                "SELECT id, name, quantity_in_stock, cost_price, unit_type, units_per_pack FROM products WHERE id = ? AND is_active = 1",
                 (item.product_id,),
             ).fetchone()
 
@@ -154,8 +154,16 @@ def create_purchase(
 
             line_cost = round(item.quantity * item.cost_price, 2)
             total_purchase_cost += line_cost
-            is_new = bool(getattr(item, "is_new_product", False) or getattr(item, "skip_stock_increment", False))
-            print(f"[PURCHASE CREATE ITEM] product_id={item.product_id}, is_new={is_new}, quantity={item.quantity}", flush=True)
+            
+            u_type = product["unit_type"]
+            u_pack = product["units_per_pack"] or 1
+            if u_type == "weight":
+                stock_increment = int(round(item.quantity * 1000))
+            elif u_type == "pack":
+                stock_increment = int(round(item.quantity * u_pack))
+            else:
+                stock_increment = int(round(item.quantity))
+
             validated_items.append({
                 "product_id": item.product_id,
                 "product_name": product["name"],
@@ -163,7 +171,7 @@ def create_purchase(
                 "cost_price": item.cost_price,
                 "line_cost": line_cost,
                 "current_stock": product["quantity_in_stock"],
-                "is_new_product": is_new,
+                "stock_increment": stock_increment,
             })
 
         total_purchase_cost = round(total_purchase_cost, 2)
@@ -214,25 +222,19 @@ def create_purchase(
                 (purchase_id, v["product_id"], v["quantity"], v["cost_price"], v["line_cost"]),
             )
 
-            if not v["is_new_product"]:
-                new_stock = v["current_stock"] + v["quantity"]
-                cursor.execute(
-                    "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
-                    (new_stock, v["cost_price"], now, v["product_id"]),
-                )
+            new_stock = v["current_stock"] + v["stock_increment"]
+            cursor.execute(
+                "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
+                (new_stock, v["cost_price"], now, v["product_id"]),
+            )
 
-                cursor.execute(
-                    """
-                    INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
-                    VALUES (?, ?, ?, 'restock', ?)
-                    """,
-                    (v["product_id"], current_user["id"], v["quantity"], now),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?",
-                    (v["cost_price"], now, v["product_id"]),
-                )
+            cursor.execute(
+                """
+                INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
+                VALUES (?, ?, ?, 'restock', ?)
+                """,
+                (v["product_id"], current_user["id"], v["stock_increment"], now),
+            )
 
         # Retrieve created purchase record
         p_row = cursor.execute(
@@ -303,12 +305,21 @@ def cancel_purchase(
         # Revert product stock
         for item in items_rows:
             product = cursor.execute(
-                "SELECT quantity_in_stock FROM products WHERE id = ?",
+                "SELECT quantity_in_stock, unit_type, units_per_pack FROM products WHERE id = ?",
                 (item["product_id"],),
             ).fetchone()
 
             if product:
-                new_stock = max(0, product["quantity_in_stock"] - item["quantity"])
+                u_type = product["unit_type"]
+                u_pack = product["units_per_pack"] or 1
+                if u_type == "weight":
+                    stock_qty = int(round(item["quantity"] * 1000))
+                elif u_type == "pack":
+                    stock_qty = int(round(item["quantity"] * u_pack))
+                else:
+                    stock_qty = int(round(item["quantity"]))
+
+                new_stock = max(0, product["quantity_in_stock"] - stock_qty)
                 cursor.execute(
                     "UPDATE products SET quantity_in_stock = ?, updated_at = ? WHERE id = ?",
                     (new_stock, now, item["product_id"]),
@@ -318,7 +329,7 @@ def cancel_purchase(
                     INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
                     VALUES (?, ?, ?, 'correction', ?)
                     """,
-                    (item["product_id"], current_user["id"], -item["quantity"], now),
+                    (item["product_id"], current_user["id"], -stock_qty, now),
                 )
 
         cursor.execute(
@@ -392,11 +403,20 @@ def update_purchase(
 
         for old_item in old_items_rows:
             product = cursor.execute(
-                "SELECT quantity_in_stock FROM products WHERE id = ?",
+                "SELECT quantity_in_stock, unit_type, units_per_pack FROM products WHERE id = ?",
                 (old_item["product_id"],),
             ).fetchone()
             if product:
-                reverted_stock = max(0, product["quantity_in_stock"] - old_item["quantity"])
+                u_type = product["unit_type"]
+                u_pack = product["units_per_pack"] or 1
+                if u_type == "weight":
+                    reverted_qty = int(round(old_item["quantity"] * 1000))
+                elif u_type == "pack":
+                    reverted_qty = int(round(old_item["quantity"] * u_pack))
+                else:
+                    reverted_qty = int(round(old_item["quantity"]))
+
+                reverted_stock = max(0, product["quantity_in_stock"] - reverted_qty)
                 cursor.execute(
                     "UPDATE products SET quantity_in_stock = ?, updated_at = ? WHERE id = ?",
                     (reverted_stock, now, old_item["product_id"]),
@@ -411,7 +431,7 @@ def update_purchase(
 
         for item in payload.items:
             product = cursor.execute(
-                "SELECT id, name, quantity_in_stock, cost_price FROM products WHERE id = ? AND is_active = 1",
+                "SELECT id, name, quantity_in_stock, cost_price, unit_type, units_per_pack FROM products WHERE id = ? AND is_active = 1",
                 (item.product_id,),
             ).fetchone()
 
@@ -423,7 +443,16 @@ def update_purchase(
 
             line_cost = round(item.quantity * item.cost_price, 2)
             total_purchase_cost += line_cost
-            is_new = bool(getattr(item, "is_new_product", False) or getattr(item, "skip_stock_increment", False))
+
+            u_type = product["unit_type"]
+            u_pack = product["units_per_pack"] or 1
+            if u_type == "weight":
+                stock_increment = int(round(item.quantity * 1000))
+            elif u_type == "pack":
+                stock_increment = int(round(item.quantity * u_pack))
+            else:
+                stock_increment = int(round(item.quantity))
+
             validated_items.append({
                 "product_id": item.product_id,
                 "product_name": product["name"],
@@ -431,7 +460,7 @@ def update_purchase(
                 "cost_price": item.cost_price,
                 "line_cost": line_cost,
                 "current_stock": product["quantity_in_stock"],
-                "is_new_product": is_new,
+                "stock_increment": stock_increment,
             })
 
         total_purchase_cost = round(total_purchase_cost, 2)
@@ -481,25 +510,19 @@ def update_purchase(
                 (purchase_id, v["product_id"], v["quantity"], v["cost_price"], v["line_cost"]),
             )
 
-            if not v["is_new_product"]:
-                new_stock = v["current_stock"] + v["quantity"]
-                cursor.execute(
-                    "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
-                    (new_stock, v["cost_price"], now, v["product_id"]),
-                )
+            new_stock = v["current_stock"] + v["stock_increment"]
+            cursor.execute(
+                "UPDATE products SET quantity_in_stock = ?, cost_price = ?, updated_at = ? WHERE id = ?",
+                (new_stock, v["cost_price"], now, v["product_id"]),
+            )
 
-                cursor.execute(
-                    """
-                    INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
-                    VALUES (?, ?, ?, 'correction', ?)
-                    """,
-                    (v["product_id"], current_user["id"], v["quantity"], now),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?",
-                    (v["cost_price"], now, v["product_id"]),
-                )
+            cursor.execute(
+                """
+                INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
+                VALUES (?, ?, ?, 'correction', ?)
+                """,
+                (v["product_id"], current_user["id"], v["stock_increment"], now),
+            )
 
         # Fetch updated record
         updated_p_row = cursor.execute(

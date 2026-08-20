@@ -12,11 +12,16 @@ from ..models import (
     BankLoanRepaymentResponse,
     BankLoanResponse,
     BankLoansOverviewResponse,
+    BorrowerCreate,
+    BorrowerResponse,
+    BorrowersOverviewResponse,
     CashBreakdownIn,
     CashBreakdownOut,
     CashSummaryResponse,
     CashTransactionCreate,
     CashTransactionResponse,
+    ThirdPartyLoanTransactionCreate,
+    ThirdPartyLoanTransactionResponse,
 )
 from .auth import require_role
 
@@ -58,11 +63,18 @@ def _fetch_cash_summary(cursor: Any) -> CashSummaryResponse:
         float(row_legacy_inv[0]) if row_legacy_inv else 0.0
     )
 
-    # d) Loan repayments received from third parties (Loan Given)
+    # d) Loan repayments received from third parties (legacy cash_transactions + third_party_loan_transactions)
     row_loan_rep = cursor.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM cash_transactions WHERE type = 'loan_repayment' AND status = 'active'"
     ).fetchone()
-    loan_repayments = float(row_loan_rep[0]) if row_loan_rep else 0.0
+    legacy_loan_rep = float(row_loan_rep[0]) if row_loan_rep else 0.0
+
+    row_tp_rep = cursor.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM third_party_loan_transactions WHERE type = 'repayment' AND status = 'active'"
+    ).fetchone()
+    tp_loan_rep = float(row_tp_rep[0]) if row_tp_rep else 0.0
+
+    loan_repayments = legacy_loan_rep + tp_loan_rep
 
     # e) Bank loans received (Money borrowed from bank)
     row_bank_loans = cursor.execute(
@@ -101,11 +113,18 @@ def _fetch_cash_summary(cursor: Any) -> CashSummaryResponse:
     ).fetchone()
     owner_withdrawals = float(row_owner_with[0]) if row_owner_with else 0.0
 
-    # d) Loans given to third parties
+    # d) Loans given to third parties (legacy cash_transactions + third_party_loan_transactions)
     row_loan_giv = cursor.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM cash_transactions WHERE type = 'loan_given' AND status = 'active'"
     ).fetchone()
-    loans_given = float(row_loan_giv[0]) if row_loan_giv else 0.0
+    legacy_loans_giv = float(row_loan_giv[0]) if row_loan_giv else 0.0
+
+    row_tp_giv = cursor.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM third_party_loan_transactions WHERE type = 'loan_given' AND status = 'active'"
+    ).fetchone()
+    tp_loans_giv = float(row_tp_giv[0]) if row_tp_giv else 0.0
+
+    loans_given = legacy_loans_giv + tp_loans_giv
 
     # e) Bank loan principal repayments
     row_bl_prin = cursor.execute(
@@ -135,6 +154,9 @@ def _fetch_cash_summary(cursor: Any) -> CashSummaryResponse:
     ).fetchone()
     total_borrowed_active = float(row_active_loans[0]) if row_active_loans else 0.0
     outstanding_bank_loans = max(0.0, round(total_borrowed_active - bank_loan_principal, 2))
+
+    # Outstanding 3rd Party Loans: net lent minus repaid
+    outstanding_tp_loans = max(0.0, round(loans_given - loan_repayments, 2))
 
     # Recent transactions
     recent_rows = cursor.execute(
@@ -168,6 +190,7 @@ def _fetch_cash_summary(cursor: Any) -> CashSummaryResponse:
         total_money_in=total_in,
         total_money_out=total_out,
         total_outstanding_bank_loans=outstanding_bank_loans,
+        total_outstanding_third_party_loans=outstanding_tp_loans,
         breakdown_in=CashBreakdownIn(
             sales_cash=round(sales_cash, 2),
             customer_payments=round(customer_payments, 2),
@@ -756,3 +779,287 @@ def void_bank_loan_repayment(
         status=updated_row["status"],
         created_at=updated_row["created_at"],
     )
+
+
+# ---------------------------------------------------------------------------
+# 3rd Party / Personal Loan Khata Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/borrowers", response_model=BorrowersOverviewResponse)
+def list_borrowers(
+    current_user: dict = Depends(require_role("owner")),
+) -> BorrowersOverviewResponse:
+    """Retrieve all borrowers, their individual loan balance, and total khata summary (owner only)."""
+    with transaction() as cursor:
+        rows = cursor.execute(
+            """
+            SELECT b.id, b.name, b.phone, b.notes, b.created_at,
+                   COALESCE(SUM(CASE WHEN t.type = 'loan_given' AND t.status = 'active' THEN t.amount ELSE 0 END), 0) AS total_lent,
+                   COALESCE(SUM(CASE WHEN t.type = 'repayment' AND t.status = 'active' THEN t.amount ELSE 0 END), 0) AS total_repaid
+            FROM third_party_borrowers b
+            LEFT JOIN third_party_loan_transactions t ON b.id = t.borrower_id
+            GROUP BY b.id
+            ORDER BY b.name COLLATE NOCASE ASC
+            """
+        ).fetchall()
+
+        borrower_list: List[BorrowerResponse] = []
+        overall_lent = 0.0
+        overall_recovered = 0.0
+        overall_outstanding = 0.0
+
+        for r in rows:
+            lent = float(r["total_lent"])
+            repaid = float(r["total_repaid"])
+            bal = max(0.0, round(lent - repaid, 2))
+            overall_lent += lent
+            overall_recovered += repaid
+            overall_outstanding += bal
+
+            borrower_list.append(
+                BorrowerResponse(
+                    id=r["id"],
+                    name=r["name"],
+                    phone=r["phone"],
+                    notes=r["notes"],
+                    total_lent=round(lent, 2),
+                    total_repaid=round(repaid, 2),
+                    balance_owed=round(bal, 2),
+                    status="active" if bal > 0 else "settled",
+                    created_at=r["created_at"],
+                )
+            )
+
+        return BorrowersOverviewResponse(
+            total_lent=round(overall_lent, 2),
+            total_recovered=round(overall_recovered, 2),
+            total_outstanding=round(overall_outstanding, 2),
+            borrowers=borrower_list,
+        )
+
+
+@router.post("/borrowers", response_model=BorrowerResponse, status_code=status.HTTP_201_CREATED)
+def create_borrower(
+    payload: BorrowerCreate,
+    current_user: dict = Depends(require_role("owner")),
+) -> BorrowerResponse:
+    """Create a new third party borrower account (owner only)."""
+    name_clean = payload.name.strip()
+    if not name_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Borrower name is required",
+        )
+
+    with transaction() as cursor:
+        existing = cursor.execute(
+            "SELECT id FROM third_party_borrowers WHERE LOWER(name) = LOWER(?)",
+            (name_clean,),
+        ).fetchone()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Borrower '{name_clean}' already exists",
+            )
+
+        cursor.execute(
+            "INSERT INTO third_party_borrowers (name, phone, notes) VALUES (?, ?, ?)",
+            (name_clean, payload.phone.strip() if payload.phone else None, payload.notes.strip() if payload.notes else None),
+        )
+        b_id = cursor.lastrowid
+        row = cursor.execute(
+            "SELECT id, name, phone, notes, created_at FROM third_party_borrowers WHERE id = ?",
+            (b_id,),
+        ).fetchone()
+
+    return BorrowerResponse(
+        id=row["id"],
+        name=row["name"],
+        phone=row["phone"],
+        notes=row["notes"],
+        total_lent=0.0,
+        total_repaid=0.0,
+        balance_owed=0.0,
+        status="settled",
+        created_at=row["created_at"],
+    )
+
+
+@router.get("/borrowers/{borrower_id}/history", response_model=List[ThirdPartyLoanTransactionResponse])
+def get_borrower_history(
+    borrower_id: int,
+    current_user: dict = Depends(require_role("owner")),
+) -> List[ThirdPartyLoanTransactionResponse]:
+    """Retrieve full loan and repayment ledger for a borrower (owner only)."""
+    with transaction() as cursor:
+        rows = cursor.execute(
+            """
+            SELECT t.id, t.borrower_id, b.name AS borrower_name, t.user_id, u.name AS user_name,
+                   t.type, t.amount, t.date, t.notes, t.status, t.created_at
+            FROM third_party_loan_transactions t
+            JOIN third_party_borrowers b ON t.borrower_id = b.id
+            JOIN users u ON t.user_id = u.id
+            WHERE t.borrower_id = ?
+            ORDER BY t.id DESC
+            """,
+            (borrower_id,),
+        ).fetchall()
+
+    return [
+        ThirdPartyLoanTransactionResponse(
+            id=r["id"],
+            borrower_id=r["borrower_id"],
+            borrower_name=r["borrower_name"],
+            user_id=r["user_id"],
+            user_name=r["user_name"],
+            type=r["type"],
+            amount=float(r["amount"]),
+            date=str(r["date"]),
+            notes=r["notes"],
+            status=r["status"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
+
+
+@router.post("/borrowers/transactions", response_model=ThirdPartyLoanTransactionResponse, status_code=status.HTTP_201_CREATED)
+def create_loan_transaction(
+    payload: ThirdPartyLoanTransactionCreate,
+    current_user: dict = Depends(require_role("owner")),
+) -> ThirdPartyLoanTransactionResponse:
+    """Record giving a loan or receiving a repayment for a borrower (owner only)."""
+    if payload.amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Amount must be greater than zero",
+        )
+
+    with transaction() as cursor:
+        borrower_id = payload.borrower_id
+
+        if not borrower_id:
+            b_name = (payload.borrower_name or "").strip()
+            if not b_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Please specify a borrower or enter a borrower name",
+                )
+
+            existing = cursor.execute(
+                "SELECT id FROM third_party_borrowers WHERE LOWER(name) = LOWER(?)",
+                (b_name,),
+            ).fetchone()
+            if existing:
+                borrower_id = existing["id"]
+            else:
+                cursor.execute(
+                    "INSERT INTO third_party_borrowers (name, phone, notes) VALUES (?, ?, ?)",
+                    (b_name, payload.phone.strip() if payload.phone else None, None),
+                )
+                borrower_id = cursor.lastrowid
+
+        b_row = cursor.execute(
+            "SELECT id, name FROM third_party_borrowers WHERE id = ?",
+            (borrower_id,),
+        ).fetchone()
+        if not b_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Borrower not found",
+            )
+
+        tx_date = payload.date if payload.date else date.today().isoformat()
+        notes_clean = payload.notes.strip() if payload.notes else None
+
+        cursor.execute(
+            """
+            INSERT INTO third_party_loan_transactions (borrower_id, user_id, type, amount, date, notes, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'active')
+            """,
+            (borrower_id, current_user["id"], payload.type, payload.amount, tx_date, notes_clean),
+        )
+        tx_id = cursor.lastrowid
+
+        row = cursor.execute(
+            """
+            SELECT t.id, t.borrower_id, b.name AS borrower_name, t.user_id, u.name AS user_name,
+                   t.type, t.amount, t.date, t.notes, t.status, t.created_at
+            FROM third_party_loan_transactions t
+            JOIN third_party_borrowers b ON t.borrower_id = b.id
+            JOIN users u ON t.user_id = u.id
+            WHERE t.id = ?
+            """,
+            (tx_id,),
+        ).fetchone()
+
+    return ThirdPartyLoanTransactionResponse(
+        id=row["id"],
+        borrower_id=row["borrower_id"],
+        borrower_name=row["borrower_name"],
+        user_id=row["user_id"],
+        user_name=row["user_name"],
+        type=row["type"],
+        amount=float(row["amount"]),
+        date=str(row["date"]),
+        notes=row["notes"],
+        status=row["status"],
+        created_at=row["created_at"],
+    )
+
+
+@router.post("/borrowers/transactions/{tx_id}/void", response_model=ThirdPartyLoanTransactionResponse)
+def void_loan_transaction(
+    tx_id: int,
+    current_user: dict = Depends(require_role("owner")),
+) -> ThirdPartyLoanTransactionResponse:
+    """Void a third-party loan transaction (owner only)."""
+    with transaction() as cursor:
+        row = cursor.execute(
+            "SELECT id, status FROM third_party_loan_transactions WHERE id = ?",
+            (tx_id,),
+        ).fetchone()
+
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Loan transaction not found",
+            )
+
+        if row["status"] == "voided":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transaction is already voided",
+            )
+
+        cursor.execute(
+            "UPDATE third_party_loan_transactions SET status = 'voided' WHERE id = ?",
+            (tx_id,),
+        )
+
+        updated = cursor.execute(
+            """
+            SELECT t.id, t.borrower_id, b.name AS borrower_name, t.user_id, u.name AS user_name,
+                   t.type, t.amount, t.date, t.notes, t.status, t.created_at
+            FROM third_party_loan_transactions t
+            JOIN third_party_borrowers b ON t.borrower_id = b.id
+            JOIN users u ON t.user_id = u.id
+            WHERE t.id = ?
+            """,
+            (tx_id,),
+        ).fetchone()
+
+    return ThirdPartyLoanTransactionResponse(
+        id=updated["id"],
+        borrower_id=updated["borrower_id"],
+        borrower_name=updated["borrower_name"],
+        user_id=updated["user_id"],
+        user_name=updated["user_name"],
+        type=updated["type"],
+        amount=float(updated["amount"]),
+        date=str(updated["date"]),
+        notes=updated["notes"],
+        status=updated["status"],
+        created_at=updated["created_at"],
+    )
+

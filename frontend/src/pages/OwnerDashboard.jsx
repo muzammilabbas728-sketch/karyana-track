@@ -59,7 +59,7 @@ function calculateUnitAwareInvestment(prods) {
   }, 0);
 }
 
-export default function OwnerDashboard({ onNavigateToCash }) {
+export default function OwnerDashboard({ onNavigateToCash, onNavigateToInventory }) {
   const [dailyReport, setDailyReport] = useState(null);
   const [cashSummary, setCashSummary] = useState(null);
   const [lowStock, setLowStock] = useState([]);
@@ -287,7 +287,7 @@ export default function OwnerDashboard({ onNavigateToCash }) {
           product_id: Number(targetProductId),
           quantity: Number(item.quantity),
           cost_price: Number(item.cost_price),
-          is_new_product: false,
+          is_new_product: isNewProduct,
           skip_stock_increment: false,
         });
       }
@@ -305,8 +305,6 @@ export default function OwnerDashboard({ onNavigateToCash }) {
         }
       }
 
-      console.log("[PURCHASE SUBMIT] finalPurchaseItems:", finalPurchaseItems);
-
       if (editingPurchaseId) {
         await updatePurchase(editingPurchaseId, {
           supplier_id: supplierId ? Number(supplierId) : null,
@@ -317,7 +315,6 @@ export default function OwnerDashboard({ onNavigateToCash }) {
           items: finalPurchaseItems,
         });
         setPurchaseSuccess(`Purchase #${editingPurchaseId} updated successfully.`);
-        setEditingPurchaseId(null);
       } else {
         await createPurchase({
           supplier_id: supplierId ? Number(supplierId) : null,
@@ -330,115 +327,98 @@ export default function OwnerDashboard({ onNavigateToCash }) {
         setPurchaseSuccess("Inventory purchase recorded successfully.");
       }
 
+      setShowAddPurchase(false);
+      setEditingPurchaseId(null);
       setSupplierId("");
       setSupplierName("");
       setPaymentStatus("paid");
       setAmountPaidNow("");
       setPurchaseNotes("");
-      setPurchaseItems([
-        {
-          product_id: "",
-          quantity: 1,
-          cost_price: "",
-          new_name: "",
-          unit_type: "piece",
-          selling_price: "",
-          low_stock_threshold: "10",
-          units_per_pack: "1",
-        },
-      ]);
-      setShowAddPurchase(false);
+      setPurchaseItems([{ product_id: "", quantity: 1, cost_price: "" }]);
 
-      const [pData, suppsData, prodsData] = await Promise.all([
+      const [pData, prodsData, suppsData] = await Promise.all([
         getPurchases(),
-        getSuppliers(),
         getProducts(),
+        getSuppliers(),
       ]);
-      setProducts(Array.isArray(prodsData) ? prodsData : []);
+      const loadedProds = Array.isArray(prodsData) ? prodsData : [];
+      setProducts(loadedProds);
+      setSuppliers(Array.isArray(suppsData) ? suppsData : []);
       if (pData) {
-        setTotalInventoryInvestment(Number(pData.total_investment) || 0);
+        const pInv = Number(pData.total_investment) || 0;
+        const prodInv = calculateUnitAwareInvestment(loadedProds);
+        setTotalInventoryInvestment(pInv > 0 ? pInv : prodInv);
         setPurchases(Array.isArray(pData.purchases) ? pData.purchases : []);
       }
-      setSuppliers(Array.isArray(suppsData) ? suppsData : []);
     } catch (err) {
-      setError(err.message || "Failed to record or update purchase");
+      setError(err.message || "Failed to record purchase");
     }
   }
 
-  function handleStartEditPurchase(pur) {
+  function startEditPurchase(p) {
     setError(null);
     setPurchaseSuccess(null);
-    setEditingPurchaseId(pur.id);
-    setSupplierId(pur.supplier_id ? String(pur.supplier_id) : "");
-    setSupplierName(pur.supplier_name || "");
-    setPaymentStatus(pur.payment_status || "paid");
-    setAmountPaidNow(pur.payment_status === "partial" ? String(pur.amount_paid || "") : "");
-    setPurchaseNotes(pur.notes || "");
-    setPurchaseItems(
-      Array.isArray(pur.items) && pur.items.length > 0
-        ? pur.items.map((i) => ({
-            product_id: String(i.product_id),
-            quantity: i.quantity,
-            cost_price: i.cost_price,
-            new_name: "",
-            unit_type: "piece",
-            selling_price: "",
-            low_stock_threshold: "10",
-            units_per_pack: "1",
-          }))
-        : [
-            {
-              product_id: "",
-              quantity: 1,
-              cost_price: "",
-              new_name: "",
-              unit_type: "piece",
-              selling_price: "",
-              low_stock_threshold: "10",
-              units_per_pack: "1",
-            },
-          ]
-    );
+    setEditingPurchaseId(p.id);
+    setSupplierId(p.supplier_id ? String(p.supplier_id) : "");
+    setSupplierName(p.supplier_name || "");
+    setPaymentStatus(p.payment_status || "paid");
+    setAmountPaidNow(p.amount_paid !== undefined && p.amount_paid !== null ? String(p.amount_paid) : "");
+    setPurchaseNotes(p.notes || "");
+    if (p.items && p.items.length > 0) {
+      setPurchaseItems(
+        p.items.map((it) => ({
+          product_id: String(it.product_id),
+          quantity: it.quantity,
+          cost_price: it.cost_price,
+        }))
+      );
+    } else {
+      setPurchaseItems([{ product_id: "", quantity: 1, cost_price: "" }]);
+    }
     setShowAddPurchase(true);
   }
 
   async function handleCancelPurchase(purchaseId) {
-    const confirmed = window.confirm(
-      "Cancel this purchase? Stock levels will be reverted and this purchase cost will be removed from Total Investment."
-    );
-    if (!confirmed) return;
-
+    if (!window.confirm(`Are you sure you want to cancel purchase #${purchaseId}? This will reverse the stock added.`)) {
+      return;
+    }
     setError(null);
     setPurchaseSuccess(null);
-
     try {
       await cancelPurchase(purchaseId);
-      setPurchaseSuccess(`Purchase #${purchaseId} cancelled.`);
-      const [pData, suppsData] = await Promise.all([getPurchases(), getSuppliers()]);
+      setPurchaseSuccess(`Purchase #${purchaseId} cancelled successfully.`);
+      const [pData, prodsData, suppsData] = await Promise.all([
+        getPurchases(),
+        getProducts(),
+        getSuppliers(),
+      ]);
+      const loadedProds = Array.isArray(prodsData) ? prodsData : [];
+      setProducts(loadedProds);
+      setSuppliers(Array.isArray(suppsData) ? suppsData : []);
       if (pData) {
-        setTotalInventoryInvestment(Number(pData.total_investment) || 0);
+        const pInv = Number(pData.total_investment) || 0;
+        const prodInv = calculateUnitAwareInvestment(loadedProds);
+        setTotalInventoryInvestment(pInv > 0 ? pInv : prodInv);
         setPurchases(Array.isArray(pData.purchases) ? pData.purchases : []);
       }
-      setSuppliers(Array.isArray(suppsData) ? suppsData : []);
     } catch (err) {
       setError(err.message || "Failed to cancel purchase");
     }
   }
 
-  async function handleAddSupplier(event) {
+  async function handleAddSupplierSubmit(event) {
     event.preventDefault();
     setError(null);
     setPurchaseSuccess(null);
 
-    const nameClean = newSupplierName.trim();
-    if (!nameClean) {
+    if (!newSupplierName.trim()) {
       setError("Please enter a supplier name.");
       return;
     }
 
     try {
       await createSupplier({
-        name: nameClean,
+        name: newSupplierName.trim(),
         phone: newSupplierPhone.trim() || null,
       });
       setNewSupplierName("");
@@ -500,10 +480,155 @@ export default function OwnerDashboard({ onNavigateToCash }) {
     <div
       style={{
         display: "grid",
-        gap: "1rem",
+        gap: "1.25rem",
         gridTemplateColumns: "1fr 1fr",
       }}
     >
+      {/* Top Hero KPI Bar: Business Health & Assets */}
+      <section
+        style={{
+          ...styles.card,
+          gridColumn: "1 / -1",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <div style={{ marginBottom: "1rem" }}>
+          <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", margin: 0 }}>Business Health & Assets</h2>
+          <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.85rem", color: colors.muted, fontFamily: fonts.body }}>
+            Real-time liquid cash, inventory stock valuation, and cumulative purchase investment.
+          </p>
+        </div>
+
+        {loading ? (
+          <p style={{ color: colors.muted, margin: 0 }}>Loading business metrics...</p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gap: "1rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            }}
+          >
+            {/* Card 1: Business Cash Balance */}
+            <div
+              style={{
+                padding: "1.1rem",
+                ...styles.cardAccent(colors.primary),
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    💰 Business Cash
+                  </span>
+                  {onNavigateToCash ? (
+                    <button
+                      type="button"
+                      onClick={onNavigateToCash}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: colors.primary,
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      Manage Cash →
+                    </button>
+                  ) : null}
+                </div>
+                <div
+                  style={{
+                    fontSize: "1.4rem",
+                    fontWeight: 700,
+                    marginTop: "0.4rem",
+                    color: (cashSummary?.current_balance ?? 0) >= 0 ? colors.ink : colors.danger,
+                  }}
+                >
+                  Rs. {(cashSummary?.current_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: colors.muted, marginTop: "0.6rem", borderTop: `1px dashed ${colors.border}`, paddingTop: "0.4rem" }}>
+                In: +Rs. {(cashSummary?.total_money_in ?? 0).toFixed(2)} · Out: -Rs. {(cashSummary?.total_money_out ?? 0).toFixed(2)}
+              </div>
+            </div>
+
+            {/* Card 2: Current Stock Value */}
+            <div
+              style={{
+                padding: "1.1rem",
+                ...styles.cardAccent(colors.primary),
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    📦 Current Stock Value
+                  </span>
+                  {onNavigateToInventory ? (
+                    <button
+                      type="button"
+                      onClick={onNavigateToInventory}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: colors.primary,
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      Inventory →
+                    </button>
+                  ) : null}
+                </div>
+                <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: colors.ink }}>
+                  Rs. {calculateUnitAwareInvestment(products).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: colors.muted, marginTop: "0.6rem", borderTop: `1px dashed ${colors.border}`, paddingTop: "0.4rem" }}>
+                Active inventory at unit cost price
+              </div>
+            </div>
+
+            {/* Card 3: Total Investment */}
+            <div
+              style={{
+                padding: "1.1rem",
+                ...styles.cardAccent(colors.primary),
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    📈 Total Purchases
+                  </span>
+                </div>
+                <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: colors.ink }}>
+                  Rs. {totalInventoryInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: colors.muted, marginTop: "0.6rem", borderTop: `1px dashed ${colors.border}`, paddingTop: "0.4rem" }}>
+                Cumulative inventory investments
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Today's Summary (Focused strictly on Today's Sales Performance) */}
       <section
         style={{
           ...styles.card,
@@ -519,17 +644,6 @@ export default function OwnerDashboard({ onNavigateToCash }) {
           }}
         >
           <h2 style={{ ...styles.pageTitle, fontSize: "1.3rem", margin: 0 }}>Today's Summary</h2>
-          <button
-            type="button"
-            onClick={() => setShowTotalInvestment((curr) => !curr)}
-            style={{
-              ...styles.buttonSecondary,
-              padding: "0.35rem 0.75rem",
-              fontSize: "0.85rem",
-            }}
-          >
-            {showTotalInvestment ? "Hide Investment" : "Show Investment"}
-          </button>
         </div>
         {loading ? (
           <p>Loading summary...</p>
@@ -541,63 +655,9 @@ export default function OwnerDashboard({ onNavigateToCash }) {
                 ...styles.cardAccent(colors.primary),
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong>Business Cash Balance</strong>
-                {onNavigateToCash ? (
-                  <button
-                    type="button"
-                    onClick={onNavigateToCash}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: colors.primary,
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    Manage Cash →
-                  </button>
-                ) : null}
-              </div>
-              <div
-                style={{
-                  fontSize: "1.3rem",
-                  fontWeight: 700,
-                  marginTop: "0.25rem",
-                  color: (cashSummary?.current_balance ?? 0) >= 0 ? colors.ink : colors.danger,
-                }}
-              >
-                Rs. {(cashSummary?.current_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ fontSize: "0.8rem", color: colors.muted, marginTop: "0.25rem" }}>
-                In: +Rs. {(cashSummary?.total_money_in ?? 0).toFixed(2)} · Out: -Rs. {(cashSummary?.total_money_out ?? 0).toFixed(2)}
-              </div>
-            </div>
-
-            {showTotalInvestment ? (
-              <div
-                style={{
-                  padding: "1rem",
-                  ...styles.cardAccent(colors.primary),
-                }}
-              >
-                <strong>Total Investment (Inventory Purchased)</strong>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
-                  Rs. {totalInventoryInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-            ) : null}
-            <div
-              style={{
-                padding: "1rem",
-                ...styles.cardAccent(colors.primary),
-              }}
-            >
-              <strong>Remaining Stock Cost (Current Stock Value)</strong>
-              <div style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: "0.25rem" }}>
-                Rs. {calculateUnitAwareInvestment(products).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ fontSize: "0.85rem", color: colors.muted, fontWeight: 600 }}>Sales Count</div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+                {dailyReport?.total_sales_count ?? 0}
               </div>
             </div>
             <div
@@ -606,8 +666,10 @@ export default function OwnerDashboard({ onNavigateToCash }) {
                 ...styles.cardAccent(colors.primary),
               }}
             >
-              <strong>Sales Count</strong>
-              <div>{dailyReport?.total_sales_count ?? "—"}</div>
+              <div style={{ fontSize: "0.85rem", color: colors.muted, fontWeight: 600 }}>Total Revenue</div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 700, marginTop: "0.25rem", color: colors.ink }}>
+                Rs. {dailyReport?.total_revenue ? Number(dailyReport.total_revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
+              </div>
             </div>
             <div
               style={{
@@ -615,17 +677,10 @@ export default function OwnerDashboard({ onNavigateToCash }) {
                 ...styles.cardAccent(colors.primary),
               }}
             >
-              <strong>Total Revenue</strong>
-              <div>Rs. {dailyReport?.total_revenue ?? "—"}</div>
-            </div>
-            <div
-              style={{
-                padding: "1rem",
-                ...styles.cardAccent(colors.primary),
-              }}
-            >
-              <strong>Total Profit</strong>
-              <div>Rs. {dailyReport?.total_profit ?? "—"}</div>
+              <div style={{ fontSize: "0.85rem", color: colors.muted, fontWeight: 600 }}>Total Profit</div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 700, marginTop: "0.25rem", color: colors.primary }}>
+                Rs. {dailyReport?.total_profit ? Number(dailyReport.total_profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
+              </div>
             </div>
           </div>
         )}

@@ -421,6 +421,7 @@ class CashSummaryResponse(BaseModel):
     total_money_in: float = Field(..., description="Total cash received across all sources")
     total_money_out: float = Field(..., description="Total cash spent across all destinations")
     total_outstanding_bank_loans: float = Field(0.0, description="Total current debt owed across active bank loans")
+    total_outstanding_third_party_loans: float = Field(0.0, description="Total outstanding loans receivable from 3rd parties")
     breakdown_in: CashBreakdownIn = Field(..., description="Breakdown of cash inflows")
     breakdown_out: CashBreakdownOut = Field(..., description="Breakdown of cash outflows")
     recent_transactions: List[CashTransactionResponse] = Field(default_factory=list, description="Recent cash transactions")
@@ -492,6 +493,69 @@ class BankLoansOverviewResponse(BaseModel):
     total_interest_paid: float = Field(0.0, description="Total interest paid")
     total_outstanding: float = Field(0.0, description="Total net outstanding bank debt")
     loans: List[BankLoanResponse] = Field(default_factory=list, description="List of bank loans")
+
+
+class BorrowerCreate(BaseModel):
+    """Payload to create a new third party borrower."""
+
+    name: str = Field(..., min_length=1, description="Person / borrower name")
+    phone: Optional[str] = Field(default=None, description="Contact phone number")
+    notes: Optional[str] = Field(default=None, description="Optional notes")
+
+
+class BorrowerResponse(BaseModel):
+    """Response payload for a borrower including live ledger balance."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Borrower ID")
+    name: str = Field(..., description="Borrower name")
+    phone: Optional[str] = Field(default=None, description="Phone number")
+    notes: Optional[str] = Field(default=None, description="Notes")
+    total_lent: float = Field(0.0, description="Total money lent to this person")
+    total_repaid: float = Field(0.0, description="Total money repaid by this person")
+    balance_owed: float = Field(0.0, description="Remaining balance owed to business")
+    status: str = Field("active", description="'active' if balance > 0 else 'settled'")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+
+class BorrowersOverviewResponse(BaseModel):
+    """Overview summary and directory of third-party borrowers."""
+
+    total_lent: float = Field(0.0, description="Total loan money lent across all borrowers")
+    total_recovered: float = Field(0.0, description="Total loan money recovered/repaid")
+    total_outstanding: float = Field(0.0, description="Total outstanding receivables owed to business")
+    borrowers: List[BorrowerResponse] = Field(default_factory=list, description="List of borrowers")
+
+
+class ThirdPartyLoanTransactionCreate(BaseModel):
+    """Payload to record giving a loan or receiving a repayment."""
+
+    borrower_id: Optional[int] = Field(default=None, description="Existing borrower ID")
+    borrower_name: Optional[str] = Field(default=None, description="Borrower name if creating a new borrower inline")
+    phone: Optional[str] = Field(default=None, description="Borrower phone if creating inline")
+    type: Literal["loan_given", "repayment"] = Field(..., description="'loan_given' (Cash Out) or 'repayment' (Cash In)")
+    amount: float = Field(..., gt=0, description="Transaction amount")
+    date: Optional[str] = Field(default=None, description="Date in YYYY-MM-DD format")
+    notes: Optional[str] = Field(default=None, description="Optional notes or terms")
+
+
+class ThirdPartyLoanTransactionResponse(BaseModel):
+    """Response payload for a single third-party loan transaction."""
+
+    model_config = {"from_attributes": True}
+
+    id: int = Field(..., description="Transaction ID")
+    borrower_id: int = Field(..., description="Borrower ID")
+    borrower_name: str = Field(..., description="Borrower name")
+    user_id: int = Field(..., description="User ID who recorded the transaction")
+    user_name: Optional[str] = Field(default=None, description="User name")
+    type: str = Field(..., description="'loan_given' or 'repayment'")
+    amount: float = Field(..., description="Amount")
+    date: str = Field(..., description="Date YYYY-MM-DD")
+    notes: Optional[str] = Field(default=None, description="Notes")
+    status: str = Field(..., description="'active' or 'voided'")
+    created_at: datetime = Field(..., description="Creation timestamp")
 
 
 

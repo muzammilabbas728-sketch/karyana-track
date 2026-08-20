@@ -80,6 +80,39 @@ def create_product(product: ProductCreate, current_user: dict = Depends(require_
         )
         product_id = cursor.lastrowid
 
+        if product.quantity_in_stock > 0 and product.cost_price > 0:
+            if product.unit_type == "weight":
+                item_qty = round(product.quantity_in_stock / 1000.0, 3)
+            elif product.unit_type == "pack":
+                item_qty = round(product.quantity_in_stock / float(product.units_per_pack or 1), 2)
+            else:
+                item_qty = float(product.quantity_in_stock)
+
+            total_cost = round(item_qty * product.cost_price, 2)
+            if total_cost > 0:
+                cursor.execute(
+                    """
+                    INSERT INTO inventory_purchases (user_id, supplier_id, supplier_name, total_cost, payment_status, amount_paid, notes, status, created_at)
+                    VALUES (?, NULL, 'Initial Inventory Stock', ?, 'paid', ?, ?, 'active', ?)
+                    """,
+                    (current_user["id"], total_cost, total_cost, f"Initial stock added for {product.name}", now),
+                )
+                purchase_id = cursor.lastrowid
+                cursor.execute(
+                    """
+                    INSERT INTO purchase_items (purchase_id, product_id, quantity, cost_price, total_cost)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (purchase_id, product_id, item_qty, product.cost_price, total_cost),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO stock_adjustments (product_id, user_id, change_amount, reason, created_at)
+                    VALUES (?, ?, ?, 'restock', ?)
+                    """,
+                    (product_id, current_user["id"], product.quantity_in_stock, now),
+                )
+
     with transaction() as cursor:
         row = cursor.execute(
             "SELECT id, name, barcode, cost_price, selling_price, quantity_in_stock, unit_type, units_per_pack, "
